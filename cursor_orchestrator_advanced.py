@@ -30,11 +30,48 @@ class Config:
     CURSOR_CLI = "cursor-agent"
     GIT_AUTO_COMMIT = True
     
+    # Security: Allowed project paths (empty list = allow all)
+    ALLOWED_PROJECT_PATHS = [
+        Path.home() / "projects",
+        Path.home() / "work",
+        Path.home() / "Documents",
+        # Add more allowed paths as needed
+    ]
+    
     @classmethod
     def ensure_dirs(cls):
         """Create necessary directories"""
         cls.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         cls.LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    
+    @classmethod
+    def validate_project_path(cls, path: str) -> bool:
+        """Validate if project path is allowed"""
+        # If no restrictions, allow all
+        if not cls.ALLOWED_PROJECT_PATHS:
+            return True
+        
+        try:
+            project_path = Path(path).resolve()
+            # Check if path exists
+            if not project_path.exists():
+                logger.warning(f"Project path does not exist: {path}")
+                return False
+            
+            # Check if path is within allowed directories
+            for allowed_path in cls.ALLOWED_PROJECT_PATHS:
+                try:
+                    allowed_path = allowed_path.resolve()
+                    if project_path.is_relative_to(allowed_path):
+                        return True
+                except (ValueError, RuntimeError):
+                    continue
+            
+            logger.warning(f"Project path not in allowed directories: {path}")
+            return False
+        except Exception as e:
+            logger.error(f"Error validating path {path}: {e}")
+            return False
 
 # ============================================================================
 # LOGGING
@@ -158,6 +195,21 @@ class StateManager:
                 task_id TEXT,
                 event_type TEXT NOT NULL,
                 details TEXT
+            )
+        """)
+        
+        # Task templates table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS task_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT NOT NULL,
+                command TEXT NOT NULL,
+                priority TEXT NOT NULL,
+                tags TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                use_count INTEGER DEFAULT 0
             )
         """)
         
@@ -557,12 +609,20 @@ task_executor = TaskExecutor(state_manager)
 # Create MCP server
 mcp = FastMCP("Claude-Cursor Advanced Orchestrator")
 
-# Task processor will be started when server runs
-@mcp.resource("orchestrator://start")
-async def _start_background_tasks() -> str:
-    """Start background tasks when server initializes"""
-    asyncio.create_task(task_executor.process_queue())
-    return "Background tasks started"
+# Background task handle
+_background_task: Optional[asyncio.Task] = None
+
+def _ensure_background_task():
+    """Ensure background task processor is running"""
+    global _background_task
+    if _background_task is None or _background_task.done():
+        try:
+            loop = asyncio.get_running_loop()
+            _background_task = loop.create_task(task_executor.process_queue())
+            logger.info("Background task processor started")
+        except RuntimeError:
+            # No event loop running yet - will be started on first tool call
+            logger.warning("No event loop yet - background task will start on first tool call")
 
 # ============================================================================
 # MCP TOOLS
@@ -589,6 +649,16 @@ async def execute_cursor_task(
     Returns:
         Task information including task_id for tracking
     """
+    # Ensure background task processor is running
+    _ensure_background_task()
+    
+    # Validate project path
+    if not Config.validate_project_path(project_path):
+        return {
+            "error": "Invalid project path",
+            "message": f"Project path '{project_path}' is not allowed or does not exist. Check Config.ALLOWED_PROJECT_PATHS"
+        }
+    
     # Create task
     task_id = f"task_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
     
@@ -641,6 +711,13 @@ async def get_project_status(project_path: str) -> Dict[str, Any]:
     Returns:
         Project state, active tasks, Git status, and Cursor status
     """
+    # Validate project path
+    if not Config.validate_project_path(project_path):
+        return {
+            "error": "Invalid project path",
+            "message": f"Project path '{project_path}' is not allowed or does not exist"
+        }
+    
     # Get project state from DB
     project_state = state_manager.get_project_state(project_path)
     
@@ -733,6 +810,98 @@ async def cancel_task(task_id: str) -> Dict[str, Any]:
     }
 
 @mcp.tool()
+async def retry_task(
+    task_id: str,
+    max_retries: int = 3,
+    retry_delay: int = 5
+) -> Dict[str, Any]:
+    """
+    Retry a failed task with exponential backoff.
+    
+    Args:
+        task_id: The task ID to retry
+        max_retries: Maximum number of retry attempts
+        retry_delay: Base delay between retries in seconds
+    
+    Returns:
+        New task information or error
+    """
+    # Ensure background task processor is running
+    _ensure_background_task()
+    
+    # Get original task
+    original_task = state_manager.get_task(task_id)
+    
+    if not original_task:
+        return {"error": f"Task {task_id} not found"}
+    
+    if original_task.status != TaskStatus.FAILED:
+        return {
+            "error": "Task is not in FAILED state",
+            "message": f"Task status is {original_task.status.value}. Only FAILED tasks can be retried."
+        }
+    
+    # Validate project path
+    if not Config.validate_project_path(original_task.project_path):
+        return {
+            "error": "Invalid project path",
+            "message": "Original task's project path is no longer allowed"
+        }
+    
+    # Create new task with retry context
+    new_task_id = f"task_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_retry"
+    
+    retry_context = original_task.context.copy() if original_task.context else {}
+    retry_context["retry_of"] = task_id
+    retry_context["retry_attempt"] = retry_context.get("retry_attempt", 0) + 1
+    retry_context["max_retries"] = max_retries
+    retry_context["original_error"] = original_task.error
+    
+    # Check if max retries exceeded
+    if retry_context["retry_attempt"] > max_retries:
+        return {
+            "error": "Max retries exceeded",
+            "message": f"Task has already been retried {retry_context['retry_attempt']-1} times. Max retries: {max_retries}"
+        }
+    
+    new_task = Task(
+        id=new_task_id,
+        project_path=original_task.project_path,
+        description=f"[RETRY {retry_context['retry_attempt']}/{max_retries}] {original_task.description}",
+        command=original_task.command,
+        status=TaskStatus.PENDING,
+        priority=original_task.priority,
+        created_at=datetime.now().isoformat(),
+        context=retry_context
+    )
+    
+    # Submit retry task
+    await task_executor.submit_task(new_task)
+    
+    # Log activity
+    state_manager.log_activity(
+        "task_retried",
+        project_path=original_task.project_path,
+        task_id=new_task_id,
+        details={
+            "original_task_id": task_id,
+            "retry_attempt": retry_context["retry_attempt"],
+            "max_retries": max_retries
+        }
+    )
+    
+    logger.info(f"Retrying task {task_id} as {new_task_id} (attempt {retry_context['retry_attempt']}/{max_retries})")
+    
+    return {
+        "new_task_id": new_task_id,
+        "original_task_id": task_id,
+        "retry_attempt": retry_context["retry_attempt"],
+        "max_retries": max_retries,
+        "status": "retry_submitted",
+        "message": f"Task retry submitted successfully. Track with task_id: {new_task_id}"
+    }
+
+@mcp.tool()
 async def create_cursor_rules(
     project_path: str,
     rules: List[str],
@@ -770,6 +939,234 @@ async def create_cursor_rules(
             "mode": "appended" if append else "replaced"
         }
     except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def save_task_template(
+    name: str,
+    description: str,
+    command: str,
+    priority: str = "medium",
+    tags: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """
+    Save a task as a reusable template.
+    
+    Args:
+        name: Unique name for the template
+        description: Template description
+        command: Command/prompt template
+        priority: Default priority (low, medium, high, critical)
+        tags: Optional tags for organization
+    
+    Returns:
+        Template information
+    """
+    try:
+        template_id = f"template_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        now = datetime.now().isoformat()
+        tags_str = json.dumps(tags) if tags else None
+        
+        conn = sqlite3.connect(Config.DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            INSERT INTO task_templates (id, name, description, command, priority, tags, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (template_id, name, description, command, priority, tags_str, now, now))
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Template '{name}' saved with ID {template_id}")
+        
+        return {
+            "template_id": template_id,
+            "name": name,
+            "status": "saved",
+            "message": f"Template '{name}' saved successfully"
+        }
+    except sqlite3.IntegrityError:
+        return {
+            "error": "Template name already exists",
+            "message": f"A template with name '{name}' already exists. Use a different name or delete the existing one."
+        }
+    except Exception as e:
+        logger.error(f"Error saving template: {e}")
+        return {"error": str(e)}
+
+@mcp.tool()
+async def list_task_templates(tags: Optional[List[str]] = None) -> Dict[str, Any]:
+    """
+    List all saved task templates.
+    
+    Args:
+        tags: Optional filter by tags
+    
+    Returns:
+        List of templates
+    """
+    try:
+        conn = sqlite3.connect(Config.DB_PATH)
+        cursor = conn.cursor()
+        
+        if tags:
+            # Filter by tags (simple contains check)
+            cursor.execute("SELECT * FROM task_templates ORDER BY use_count DESC, name")
+            rows = cursor.fetchall()
+            # Filter in Python (simple approach)
+            filtered_rows = []
+            for row in rows:
+                if row[5]:  # tags column
+                    template_tags = json.loads(row[5])
+                    if any(tag in template_tags for tag in tags):
+                        filtered_rows.append(row)
+            rows = filtered_rows
+        else:
+            cursor.execute("SELECT * FROM task_templates ORDER BY use_count DESC, name")
+            rows = cursor.fetchall()
+        
+        conn.close()
+        
+        templates = [
+            {
+                "id": r[0],
+                "name": r[1],
+                "description": r[2],
+                "command": r[3],
+                "priority": r[4],
+                "tags": json.loads(r[5]) if r[5] else [],
+                "created_at": r[6],
+                "updated_at": r[7],
+                "use_count": r[8]
+            }
+            for r in rows
+        ]
+        
+        return {
+            "templates": templates,
+            "count": len(templates)
+        }
+    except Exception as e:
+        logger.error(f"Error listing templates: {e}")
+        return {"error": str(e)}
+
+@mcp.tool()
+async def create_task_from_template(
+    template_name: str,
+    project_path: str,
+    variables: Optional[Dict[str, str]] = None
+) -> Dict[str, Any]:
+    """
+    Create a new task from a saved template.
+    
+    Args:
+        template_name: Name of the template to use
+        project_path: Project path for the new task
+        variables: Optional variables to replace in command (e.g., {"feature_name": "dark_mode"})
+    
+    Returns:
+        New task information
+    """
+    # Ensure background task processor is running
+    _ensure_background_task()
+    
+    # Validate project path
+    if not Config.validate_project_path(project_path):
+        return {
+            "error": "Invalid project path",
+            "message": f"Project path '{project_path}' is not allowed or does not exist"
+        }
+    
+    try:
+        # Get template
+        conn = sqlite3.connect(Config.DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT * FROM task_templates WHERE name = ?", (template_name,))
+        row = cursor.fetchone()
+        
+        if not row:
+            conn.close()
+            return {"error": f"Template '{template_name}' not found"}
+        
+        template_id, name, description, command, priority, tags, created_at, updated_at, use_count = row
+        
+        # Update use count
+        cursor.execute("UPDATE task_templates SET use_count = use_count + 1 WHERE id = ?", (template_id,))
+        conn.commit()
+        conn.close()
+        
+        # Apply variables to command if provided
+        if variables:
+            for var_name, var_value in variables.items():
+                command = command.replace(f"{{{var_name}}}", var_value)
+                description = description.replace(f"{{{var_name}}}", var_value)
+        
+        # Create task
+        task_id = f"task_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}_from_template"
+        
+        task = Task(
+            id=task_id,
+            project_path=project_path,
+            description=description,
+            command=command,
+            status=TaskStatus.PENDING,
+            priority=TaskPriority[priority.upper()],
+            created_at=datetime.now().isoformat(),
+            context={"template_id": template_id, "template_name": template_name}
+        )
+        
+        # Submit task
+        await task_executor.submit_task(task)
+        
+        logger.info(f"Task created from template '{template_name}': {task_id}")
+        
+        return {
+            "task_id": task_id,
+            "template_name": template_name,
+            "status": "submitted",
+            "message": f"Task created from template '{template_name}'. Track with task_id: {task_id}"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating task from template: {e}")
+        return {"error": str(e)}
+
+@mcp.tool()
+async def delete_task_template(template_name: str) -> Dict[str, Any]:
+    """
+    Delete a task template.
+    
+    Args:
+        template_name: Name of the template to delete
+    
+    Returns:
+        Deletion status
+    """
+    try:
+        conn = sqlite3.connect(Config.DB_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("DELETE FROM task_templates WHERE name = ?", (template_name,))
+        deleted = cursor.rowcount
+        
+        conn.commit()
+        conn.close()
+        
+        if deleted > 0:
+            logger.info(f"Template '{template_name}' deleted")
+            return {
+                "status": "deleted",
+                "message": f"Template '{template_name}' deleted successfully"
+            }
+        else:
+            return {
+                "error": "Template not found",
+                "message": f"No template with name '{template_name}' found"
+            }
+    except Exception as e:
+        logger.error(f"Error deleting template: {e}")
         return {"error": str(e)}
 
 @mcp.tool()
@@ -896,6 +1293,125 @@ async def list_all_projects() -> str:
         result += f"- Git Branch: {p[6] or 'N/A'}\n\n"
     
     return result
+
+@mcp.resource("orchestrator://metrics")
+async def get_realtime_metrics() -> str:
+    """Get real-time performance metrics"""
+    try:
+        conn = sqlite3.connect(Config.DB_PATH)
+        cursor = conn.cursor()
+        
+        # Task statistics
+        cursor.execute("SELECT status, COUNT(*) FROM tasks GROUP BY status")
+        status_counts = dict(cursor.fetchall())
+        
+        cursor.execute("SELECT COUNT(*) FROM tasks WHERE status = 'completed'")
+        total_completed = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM tasks WHERE status = 'failed'")
+        total_failed = cursor.fetchone()[0]
+        
+        # Success rate
+        total_finished = total_completed + total_failed
+        success_rate = (total_completed / total_finished * 100) if total_finished > 0 else 0
+        
+        # Average completion time (for completed tasks)
+        cursor.execute("""
+            SELECT AVG(
+                (julianday(completed_at) - julianday(started_at)) * 24 * 60 * 60
+            ) FROM tasks 
+            WHERE status = 'completed' AND started_at IS NOT NULL AND completed_at IS NOT NULL
+        """)
+        avg_time_result = cursor.fetchone()[0]
+        avg_completion_time = avg_time_result if avg_time_result else 0
+        
+        # Tasks by priority
+        cursor.execute("SELECT priority, COUNT(*) FROM tasks GROUP BY priority")
+        priority_counts = dict(cursor.fetchall())
+        
+        # Recent activity (last hour)
+        cursor.execute("""
+            SELECT event_type, COUNT(*) FROM activity_log
+            WHERE timestamp > datetime('now', '-1 hour')
+            GROUP BY event_type
+        """)
+        recent_activity = dict(cursor.fetchall())
+        
+        # Top projects by task count
+        cursor.execute("""
+            SELECT project_path, COUNT(*) as task_count
+            FROM tasks
+            GROUP BY project_path
+            ORDER BY task_count DESC
+            LIMIT 5
+        """)
+        top_projects = cursor.fetchall()
+        
+        # Template usage
+        cursor.execute("SELECT COUNT(*), SUM(use_count) FROM task_templates")
+        template_stats = cursor.fetchone()
+        template_count = template_stats[0] if template_stats else 0
+        template_uses = template_stats[1] if template_stats and template_stats[1] else 0
+        
+        # Queue size
+        queue_size = task_executor.task_queue.qsize()
+        running_count = len(task_executor.running_tasks)
+        
+        conn.close()
+        
+        # Format as markdown
+        result = "# 📊 Real-Time Metrics\n\n"
+        result += f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        
+        result += "## 🎯 Task Statistics\n\n"
+        result += f"- **Success Rate**: {success_rate:.1f}%\n"
+        result += f"- **Avg Completion Time**: {avg_completion_time:.1f}s\n"
+        result += f"- **Completed**: {total_completed}\n"
+        result += f"- **Failed**: {total_failed}\n"
+        result += f"- **Currently Running**: {running_count}\n"
+        result += f"- **In Queue**: {queue_size}\n\n"
+        
+        result += "## 📈 Status Breakdown\n\n"
+        for status, count in status_counts.items():
+            result += f"- {status}: {count}\n"
+        result += "\n"
+        
+        result += "## ⭐ Priority Distribution\n\n"
+        priority_names = {1: "LOW", 2: "MEDIUM", 3: "HIGH", 4: "CRITICAL"}
+        for priority, count in sorted(priority_counts.items()):
+            result += f"- {priority_names.get(priority, priority)}: {count}\n"
+        result += "\n"
+        
+        result += "## 🔥 Top Projects\n\n"
+        for project_path, count in top_projects:
+            project_name = Path(project_path).name
+            result += f"- **{project_name}**: {count} tasks\n"
+        result += "\n"
+        
+        result += "## 📝 Template Usage\n\n"
+        result += f"- **Templates**: {template_count}\n"
+        result += f"- **Total Uses**: {template_uses}\n"
+        result += f"- **Avg Uses per Template**: {(template_uses / template_count):.1f}\n" if template_count > 0 else "- **Avg Uses per Template**: 0\n"
+        result += "\n"
+        
+        result += "## ⚡ Recent Activity (Last Hour)\n\n"
+        if recent_activity:
+            for event, count in sorted(recent_activity.items(), key=lambda x: x[1], reverse=True):
+                result += f"- {event}: {count}\n"
+        else:
+            result += "- No recent activity\n"
+        result += "\n"
+        
+        result += "## ⚙️ System Config\n\n"
+        result += f"- **Max Concurrent Tasks**: {Config.MAX_CONCURRENT_TASKS}\n"
+        result += f"- **Task Timeout**: {Config.TASK_TIMEOUT}s\n"
+        result += f"- **Git Auto-Commit**: {Config.GIT_AUTO_COMMIT}\n"
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error generating metrics: {e}")
+        return f"# ❌ Error\n\nFailed to generate metrics: {e}"
 
 @mcp.resource("orchestrator://logs")
 async def get_recent_logs() -> str:

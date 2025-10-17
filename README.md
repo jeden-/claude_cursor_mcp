@@ -8,24 +8,42 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 
 ## ✨ Features
 
-- **8 Powerful Tools** for task management and orchestration
-- **3 Resources** for project state and logs
+- **13 Powerful Tools** for task management and orchestration
+- **3 Resources** including real-time metrics
 - **1 Workflow Prompt** generator
 - **SQLite-based** persistent state management
 - **Git integration** with auto-commit support
 - **Concurrent task execution** with configurable limits
 - **Activity logging** and monitoring
+- **🆕 Retry mechanism** with exponential backoff
+- **🆕 Task templates** for reusable workflows
+- **🆕 Path validation** for security
+- **🆕 Real-time metrics** and analytics
 
 ## 🛠️ Tools Available
 
+### Core Tools
 1. **execute_cursor_task** - Submit tasks for Cursor AI to execute
 2. **get_task_status** - Check task status
 3. **get_project_status** - Get comprehensive project state
 4. **list_project_tasks** - List all project tasks with filtering
 5. **cancel_task** - Cancel pending/running tasks
-6. **create_cursor_rules** - Create/update .cursorrules files
-7. **get_activity_log** - Retrieve activity history
-8. **get_system_stats** - Get system-wide statistics
+6. **get_activity_log** - Retrieve activity history
+7. **get_system_stats** - Get system-wide statistics
+
+### Advanced Tools
+8. **retry_task** 🆕 - Retry failed tasks with exponential backoff
+9. **save_task_template** 🆕 - Save tasks as reusable templates
+10. **list_task_templates** 🆕 - List all saved templates
+11. **create_task_from_template** 🆕 - Create task from template
+12. **delete_task_template** 🆕 - Delete saved template
+13. **create_cursor_rules** - Create/update .cursorrules files
+
+## 📦 Resources
+
+1. **orchestrator://projects** - List all managed projects
+2. **orchestrator://logs** - Recent system logs
+3. **orchestrator://metrics** 🆕 - Real-time performance metrics
 
 ## 📦 Installation
 
