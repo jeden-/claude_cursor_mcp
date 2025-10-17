@@ -1,12 +1,12 @@
-# Claude-Cursor MCP Orchestrator 🚀
+# Claude-Cursor MCP Orchestrator
 
 Advanced orchestration system for bidirectional AI workflow management between Claude Desktop and Cursor AI.
 
-## 🎯 What is this?
+## What is this?
 
 This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate and manage tasks in Cursor AI, creating a powerful bidirectional AI workflow system.
 
-## ✨ Features
+## Features
 
 - **18 Powerful Tools** for task management and orchestration including **Claude Supervisor**
 - **6 Resources** including real-time metrics, live updates, **communication guide**, and **sprint template**
@@ -15,16 +15,16 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 - **Git integration** with auto-commit support
 - **Concurrent task execution** with configurable limits
 - **Activity logging** and monitoring
-- **🆕 Retry mechanism** with exponential backoff
-- **🆕 Task templates** for reusable workflows
-- **🆕 Path validation** for security (disabled by default)
-- **🆕 Real-time metrics** and analytics
-- **🔥 Bidirectional communication** - Claude ↔ Orchestrator ↔ Cursor AI
-- **🔥 File Watcher** - automatic monitoring of API files
-- **🔥 Live Dashboard** - real-time task visualization
-- **🎯 Claude Supervisor** - automatic task verification and correction
+- **Retry mechanism** with exponential backoff
+- **Task templates** for reusable workflows
+- **Path validation** for security (disabled by default)
+- **Real-time metrics** and analytics
+- **Bidirectional communication** - Claude ↔ Orchestrator ↔ Cursor AI
+- **File Watcher** - automatic monitoring of API files
+- **Live Dashboard** - real-time task visualization
+- **Claude Supervisor** - automatic task verification and correction
 
-## 🛠️ Tools Available
+## Tools Available
 
 ### Core Tools
 1. **execute_cursor_task** - Submit tasks for Cursor AI to execute
@@ -36,33 +36,33 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 7. **get_system_stats** - Get system-wide statistics
 
 ### Advanced Tools
-8. **retry_task** 🆕 - Retry failed tasks with exponential backoff
-9. **save_task_template** 🆕 - Save tasks as reusable templates
-10. **list_task_templates** 🆕 - List all saved templates
-11. **create_task_from_template** 🆕 - Create task from template
-12. **delete_task_template** 🆕 - Delete saved template
-13. **monitor_api_communication** 🤖 - Monitor bidirectional communication with Cursor AI
-14. **start_watching_project** 🔥 - Start automatic monitoring of API files
-15. **stop_watching_project** 🔥 - Stop monitoring of API files
-16. **get_watching_status** 🔥 - Get list of monitored projects
-17. **supervise_cursor_task** 🎯 - **Claude jako nadzorca** - pilnuje i poprawia Cursor AI
+8. **retry_task** - Retry failed tasks with exponential backoff
+9. **save_task_template** - Save tasks as reusable templates
+10. **list_task_templates** - List all saved templates
+11. **create_task_from_template** - Create task from template
+12. **delete_task_template** - Delete saved template
+13. **monitor_api_communication** - Monitor bidirectional communication with Cursor AI
+14. **start_watching_project** - Start automatic monitoring of API files
+15. **stop_watching_project** - Stop monitoring of API files
+16. **get_watching_status** - Get list of monitored projects
+17. **supervise_cursor_task** - **Claude jako nadzorca** - pilnuje i poprawia Cursor AI
 18. **create_cursor_rules** - Create/update .cursorrules files
 
-## 📦 Resources
+## Resources
 
 1. **orchestrator://projects** - List all managed projects
 2. **orchestrator://logs** - Recent system logs
-3. **orchestrator://live-updates** 🔥 - Live updates stream (SSE-compatible)
-4. **orchestrator://metrics** 🆕 - Real-time performance metrics
-5. **orchestrator://communication-guide** ⭐ - Complete guide for Claude-Cursor communication
-6. **orchestrator://sprint-template** 🆕 - Professional sprint planning template (MTQuant-style)
+3. **orchestrator://live-updates** - Live updates stream (SSE-compatible)
+4. **orchestrator://metrics** - Real-time performance metrics
+5. **orchestrator://communication-guide** - Complete guide for Claude-Cursor communication
+6. **orchestrator://sprint-template** - Professional sprint planning template (MTQuant-style)
 
-## 🎯 Prompts
+## Prompts
 
 1. **orchestration_workflow_prompt** - Generate workflow for a goal
-2. **sprint_generator_prompt** 🆕 - Generate professional sprint plans with day-by-day breakdown
+2. **sprint_generator_prompt** - Generate professional sprint plans with day-by-day breakdown
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -169,7 +169,7 @@ Claude can automatically read `orchestrator://communication-guide` to get comple
 
 **Claude Desktop will automatically use this resource** when needed!
 
-### 🚀 Sprint Generator - Professional Development Plans
+### Sprint Generator - Professional Development Plans
 
 **Based on proven patterns from production projects (MTQuant style)!**
 
@@ -276,7 +276,7 @@ Testing:
 - ✅ **Trackable progress** - built-in verification and monitoring
 - ✅ **Consistent quality** - best practices baked in
 
-### 🎯 Claude Supervisor - **Claude pilnuje Cursor AI!**
+### Claude Supervisor - Claude pilnuje Cursor AI
 
 **Twoje marzenie się spełniło!** Claude działa jako nadzorca który:
 
@@ -328,7 +328,7 @@ Claude → Ty: "Formularz gotowy! ✅"
 
 **To jest dokładnie to co chciałeś! 🎉**
 
-### 🔥 Full Automation - NEW!
+### Full Automation
 
 **Complete automatic workflow with bidirectional communication:**
 
@@ -365,7 +365,7 @@ Then open http://localhost:8080 in browser:
 - `monitor_api_communication(task_id)` - Monitor specific task
 - `orchestrator://live-updates` - SSE stream of updates
 
-### 🎯 How to Execute Tasks in Cursor
+### How to Execute Tasks in Cursor
 
 **Method 1: Cmd+K (Composer)**
 1. Open task file in Cursor
@@ -515,11 +515,11 @@ Built with:
 - [FastMCP](https://github.com/jlowin/fastmcp) framework
 - [uv](https://github.com/astral-sh/uv) by Astral
 
-## ⭐ Star if useful!
+## Star if useful
 
-If this project helps you, please consider giving it a star! ⭐
+If this project helps you, please consider giving it a star!
 
 ---
 
-**Made with ❤️ for the AI development community**
+**Made for the AI development community**
 
