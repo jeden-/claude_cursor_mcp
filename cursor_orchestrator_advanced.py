@@ -30,7 +30,7 @@ class Config:
     MAX_CONCURRENT_TASKS = 3
     TASK_TIMEOUT = 300  # 5 minutes
     CURSOR_CLI = "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
-    CURSOR_MODE = "api"  # "instruction", "mock", "auto", or "api" (bidirectional)
+    CURSOR_MODE = "instruction"  # "instruction", "mock", "auto", or "api" (bidirectional)
     GIT_AUTO_COMMIT = True
     AUTO_OPEN_CURSOR = True  # Automatically open project in Cursor
     
