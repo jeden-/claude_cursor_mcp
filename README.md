@@ -8,7 +8,7 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 
 ## ✨ Features
 
-- **17 Powerful Tools** for task management and orchestration
+- **18 Powerful Tools** for task management and orchestration including **Claude Supervisor**
 - **3 Resources** including real-time metrics
 - **1 Workflow Prompt** generator
 - **SQLite-based** persistent state management
@@ -41,7 +41,8 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 14. **start_watching_project** 🔥 - Start automatic monitoring of API files
 15. **stop_watching_project** 🔥 - Stop monitoring of API files
 16. **get_watching_status** 🔥 - Get list of monitored projects
-17. **create_cursor_rules** - Create/update .cursorrules files
+17. **supervise_cursor_task** 🎯 - **Claude jako nadzorca** - pilnuje i poprawia Cursor AI
+18. **create_cursor_rules** - Create/update .cursorrules files
 
 ## 📦 Resources
 
@@ -136,6 +137,58 @@ In `Config` class:
 - `api_xxx.json` - Communication file with status/progress
 
 **New tool:** `monitor_api_communication(task_id)` - Monitor real-time progress
+
+### 🎯 Claude Supervisor - **Claude pilnuje Cursor AI!**
+
+**Twoje marzenie się spełniło!** Claude działa jako nadzorca który:
+
+1. **Zleca zadanie** Cursorowi
+2. **Sprawdza wynik** według kryteriów akceptacji
+3. **Znajduje błędy** i braki
+4. **Automatycznie poprawia** - re-submituje zadanie z poprawkami
+5. **Iteruje** aż do sukcesu (max 3 razy)
+6. **Raportuje** wszystkie iteracje i wynik końcowy
+
+#### **Przykład użycia:**
+
+```python
+supervise_cursor_task(
+    project_path="/Users/mariusz/amgsquant",
+    task_description="Stwórz formularz logowania w React",
+    acceptance_criteria=[
+        "Formularz ma pola email i password",
+        "Jest walidacja formatu email",
+        "Hasło ma minimum 8 znaków",
+        "Jest obsługa błędów API",
+        "Są testy jednostkowe"
+    ],
+    max_iterations=3
+)
+```
+
+#### **Workflow:**
+```
+TY → Claude: "Stwórz formularz logowania"
+  ↓
+Claude → Cursor: "Create login form..."
+  ↓
+Cursor → tworzy kod
+  ↓
+Claude → sprawdza:
+  ❌ "Brakuje walidacji email"
+  ❌ "Nie ma error handling"
+  ↓
+Claude → Cursor: "Dodaj walidację i error handling"
+  ↓
+Cursor → poprawia
+  ↓
+Claude → sprawdza ponownie:
+  ✅ "Wszystko OK!"
+  ↓
+Claude → Ty: "Formularz gotowy! ✅"
+```
+
+**To jest dokładnie to co chciałeś! 🎉**
 
 ### 🔥 Full Automation - NEW!
 
