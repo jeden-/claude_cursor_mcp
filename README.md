@@ -9,7 +9,7 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 ## ✨ Features
 
 - **18 Powerful Tools** for task management and orchestration including **Claude Supervisor**
-- **4 Resources** including real-time metrics and live updates
+- **5 Resources** including real-time metrics, live updates, and **communication guide**
 - **SQLite-based** persistent state management
 - **Git integration** with auto-commit support
 - **Concurrent task execution** with configurable limits
@@ -53,6 +53,7 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 2. **orchestrator://logs** - Recent system logs
 3. **orchestrator://live-updates** 🔥 - Live updates stream (SSE-compatible)
 4. **orchestrator://metrics** 🆕 - Real-time performance metrics
+5. **orchestrator://communication-guide** ⭐ - Complete guide for Claude-Cursor communication
 
 ## 📦 Installation
 
@@ -140,6 +141,26 @@ In `Config` class:
 - `api_xxx.json` - Communication file with status/progress
 
 **New tool:** `monitor_api_communication(task_id)` - Monitor real-time progress
+
+### 📖 Communication Guide - Built-in Context
+
+**No more manual context setup!** The orchestrator includes a comprehensive communication guide as an MCP resource:
+
+**Access in Claude Desktop:**
+Claude can automatically read `orchestrator://communication-guide` to get complete instructions on how to:
+- Send tasks to Cursor AI
+- Choose the right communication method (single task, checkboxes, API mode)
+- Monitor progress and receive feedback
+- Use supervise_cursor_task for automatic verification
+- Apply best practices
+
+**This means:**
+- ✅ No need to manually paste instructions in every conversation
+- ✅ Claude always knows the latest communication patterns
+- ✅ Consistent workflow across all projects
+- ✅ Automatic updates when you modify the guide
+
+**Claude Desktop will automatically use this resource** when needed!
 
 ### 🎯 Claude Supervisor - **Claude pilnuje Cursor AI!**
 

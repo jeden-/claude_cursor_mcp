@@ -1980,6 +1980,225 @@ async def get_recent_logs() -> str:
     except Exception as e:
         return f"Error reading logs: {e}"
 
+@mcp.resource("orchestrator://communication-guide")
+async def get_communication_guide() -> str:
+    """
+    Get complete guide for Claude-Cursor communication.
+    This resource provides context for how to interact with Cursor AI.
+    """
+    return """# 📋 Komunikacja z Cursor - Instrukcje dla Claude Desktop
+
+## 🎯 Jak komunikować się z Cursor AI
+
+Gdy wysyłasz zadanie do Cursor AI przez orchestrator, masz kilka opcji komunikacji:
+
+### **Metoda 1: Pojedyncze zadanie z instrukcjami**
+Użyj narzędzia `execute_cursor_task()` z pełnymi instrukcjami:
+
+```
+execute_cursor_task(
+    project_path="/Users/mariusz/project",
+    command="Dodaj funkcję logowania użytkowników w React...",
+    priority="high"
+)
+```
+
+**Zalety:**
+- ✅ Proste i bezpośrednie
+- ✅ Cursor dostaje jedno jasne zadanie
+- ✅ Łatwe śledzenie statusu
+
+**Wady:**
+- ⚠️ Wymaga ręcznego uruchomienia (Cmd+K w Cursor)
+- ⚠️ Jednokierunkowe (nie ma automatycznego feedbacku)
+
+---
+
+### **Metoda 2: Taski z checkboxami (wieloetapowe)**
+Stwórz zadanie z listą podpunktów:
+
+```
+execute_cursor_task(
+    project_path="/Users/mariusz/project",
+    command='''
+    Zaimplementuj system autentykacji:
+    
+    [ ] 1. Stwórz komponent LoginForm.tsx
+    [ ] 2. Dodaj walidację formularza
+    [ ] 3. Połącz z API endpoint /auth/login
+    [ ] 4. Obsłuż błędy i sukces
+    [ ] 5. Dodaj testy jednostkowe
+    ''',
+    priority="high"
+)
+```
+
+**Zalety:**
+- ✅ Jasny plan działania
+- ✅ Cursor widzi wszystkie kroki
+- ✅ Łatwiejsze śledzenie postępu
+
+**Wady:**
+- ⚠️ Cursor może nie zaznaczyć checkboxów automatycznie
+- ⚠️ Musisz ręcznie sprawdzać co zostało zrobione
+
+---
+
+### **Metoda 3: Plik aktualizacji statusu (API mode)**
+Najlepsza dla automatycznej komunikacji dwukierunkowej:
+
+```
+execute_cursor_task(
+    project_path="/Users/mariusz/project",
+    command="Task with progress tracking",
+    priority="high"
+)
+```
+
+Orchestrator automatycznie tworzy:
+- `task_xxx.md` - instrukcje dla Cursor
+- `api_xxx.json` - plik komunikacji
+
+**Cursor AI powinien aktualizować** `api_xxx.json`:
+
+```json
+{
+  "status": "in_progress",
+  "progress": 50,
+  "message": "Created LoginForm.tsx, working on validation...",
+  "completed_steps": [
+    "Created component structure",
+    "Added form fields"
+  ],
+  "next_steps": [
+    "Add validation",
+    "Connect to API"
+  ]
+}
+```
+
+**Zalety:**
+- ✅ Real-time progress tracking
+- ✅ Automatyczny monitoring przez orchestrator
+- ✅ Claude Desktop dostaje powiadomienia
+- ✅ Dwukierunkowa komunikacja
+
+**Wady:**
+- ⚠️ Wymaga aby Cursor AI świadomie aktualizował plik JSON
+- ⚠️ Obecnie Cursor tego nie robi automatycznie (trzeba w Cmd+K poprosić)
+
+---
+
+## 🎯 Którą metodę wybrać?
+
+### **Dla prostych zadań (1-2 kroki):**
+→ **Metoda 1** - pojedyncze zadanie
+
+### **Dla złożonych zadań (3-10 kroków):**
+→ **Metoda 2** - taski z checkboxami
+
+### **Dla długich zadań wymagających monitoringu:**
+→ **Metoda 3** - API mode z progress tracking
+
+---
+
+## 🔄 Pełny workflow z komunikacją:
+
+### **Krok 1: Wyślij zadanie**
+```
+execute_cursor_task(
+    project_path="/Users/mariusz/amgsquant",
+    command="Dodaj dark mode do aplikacji...",
+    priority="medium"
+)
+```
+
+### **Krok 2: Sprawdź status**
+```
+get_task_status(task_id="task_20251017_...")
+```
+
+### **Krok 3: Monitoruj projekt**
+```
+start_watching_project(project_path="/Users/mariusz/amgsquant")
+```
+
+### **Krok 4: Sprawdź komunikaty**
+```
+get_watching_status()
+```
+
+### **Krok 5: Odbierz wynik**
+Orchestrator automatycznie aktualizuje status gdy:
+- Cursor zakończy zadanie
+- Plik api_*.json zostanie zmieniony
+- Timeout (5 minut domyślnie)
+
+---
+
+## 💡 Best Practices:
+
+1. **Bądź konkretny** - im jaśniejsze instrukcje, tym lepszy wynik
+2. **Używaj kontekstu** - dodaj ważne pliki/ścieżki do instrukcji
+3. **Monitoruj aktywnie** - używaj `get_task_status()` regularnie
+4. **Iteruj** - jeśli wynik nie jest OK, wyślij poprawki
+5. **Używaj supervise_cursor_task()** - dla zadań z kryteriami akceptacji
+
+---
+
+## 🎯 Przykład: Supervisor workflow
+
+Najlepszy sposób dla zadań wymagających weryfikacji:
+
+```
+supervise_cursor_task(
+    project_path="/Users/mariusz/amgsquant",
+    task_description="Stwórz stronę logowania",
+    acceptance_criteria=[
+        "Formularz ma pola email i password",
+        "Jest walidacja email (format)",
+        "Hasło minimum 8 znaków",
+        "Jest obsługa błędów API",
+        "Dodano testy jednostkowe",
+        "Kod jest sformatowany (prettier)"
+    ],
+    max_iterations=3
+)
+```
+
+**Co się stanie:**
+1. Claude wyśle zadanie do Cursor
+2. Cursor wykona zadanie (user: Cmd+K)
+3. Claude automatycznie sprawdzi czy spełnia kryteria
+4. Jeśli NIE - wyśle poprawki do Cursor
+5. Iteruje aż wszystkie kryteria będą spełnione
+6. Zwraca finalny raport
+
+---
+
+## 🚀 TL;DR (Quick Reference)
+
+**Wysyłanie zadań:**
+- `execute_cursor_task()` - podstawowe zadanie
+- `supervise_cursor_task()` - zadanie z weryfikacją
+- `create_task_from_template()` - z szablonu
+
+**Monitoring:**
+- `get_task_status(task_id)` - status konkretnego zadania
+- `get_project_status(project_path)` - status projektu
+- `start_watching_project()` - auto-monitoring
+- `get_watching_status()` - lista monitorowanych
+
+**Feedback:**
+- `get_activity_log()` - historia akcji
+- `orchestrator://live-updates` - real-time stream
+- `orchestrator://metrics` - statystyki
+
+---
+
+**✅ Używaj tych instrukcji za każdym razem gdy komunikujesz się z Cursor AI!**
+"""
+
 # ============================================================================
 # MCP PROMPTS
 # ============================================================================
