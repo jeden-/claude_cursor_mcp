@@ -27,8 +27,10 @@ class Config:
     LOG_PATH = Path.home() / ".claude-cursor-orchestrator" / "orchestrator.log"
     MAX_CONCURRENT_TASKS = 3
     TASK_TIMEOUT = 300  # 5 minutes
-    CURSOR_CLI = "cursor-agent"
+    CURSOR_CLI = "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
+    CURSOR_MODE = "instruction"  # "instruction", "mock", or "api" (future)
     GIT_AUTO_COMMIT = True
+    AUTO_OPEN_CURSOR = True  # Automatically open project in Cursor
     
     # Security: Allowed project paths (empty list = allow all)
     ALLOWED_PROJECT_PATHS = [
@@ -369,36 +371,81 @@ class CursorInterface:
     """Interface for Cursor AI operations"""
     
     @staticmethod
-    async def execute_command(project_path: str, command: str, timeout: int = 300) -> Dict[str, Any]:
-        """Execute command via Cursor CLI"""
+    async def execute_command(project_path: str, command: str, timeout: int = 300, task_id: str = None) -> Dict[str, Any]:
+        """Execute command via Cursor - creates instruction file and optionally opens project"""
         try:
             logger.info(f"Executing Cursor command in {project_path}: {command}")
+            project = Path(project_path)
             
-            process = await asyncio.create_subprocess_exec(
-                Config.CURSOR_CLI,
-                "-p", command,
-                "--output-format", "json",
-                cwd=project_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
-            )
-            
-            if process.returncode == 0:
-                result = json.loads(stdout.decode())
-                return {"success": True, "result": result}
-            else:
-                error = stderr.decode()
-                logger.error(f"Cursor command failed: {error}")
-                return {"success": False, "error": error}
+            # Mode: instruction - create task file for user to execute manually in Cursor
+            if Config.CURSOR_MODE == "instruction":
+                # Create .cursor-tasks directory
+                tasks_dir = project / ".cursor-tasks"
+                tasks_dir.mkdir(exist_ok=True)
                 
-        except asyncio.TimeoutError:
-            logger.error(f"Cursor command timed out after {timeout}s")
-            return {"success": False, "error": "Command timed out"}
+                # Generate task file
+                task_file = tasks_dir / f"task_{task_id or datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                task_content = f"""# Cursor Task: {task_id or 'New Task'}
+
+**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Project:** {project_path}
+
+## Task Instructions
+
+{command}
+
+## Next Steps
+
+1. Review the task instructions above
+2. Use Cursor's AI features (Cmd+K or Cmd+L) to implement
+3. Test your changes
+4. When complete, mark this task as done in the orchestrator
+
+---
+*This task was created by Claude-Cursor Orchestrator*
+"""
+                task_file.write_text(task_content)
+                logger.info(f"Created task file: {task_file}")
+                
+                # Open project in Cursor if configured
+                if Config.AUTO_OPEN_CURSOR and Config.CURSOR_CLI:
+                    try:
+                        process = await asyncio.create_subprocess_exec(
+                            Config.CURSOR_CLI,
+                            str(project),
+                            str(task_file),
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        await asyncio.wait_for(process.communicate(), timeout=10)
+                        logger.info(f"Opened project in Cursor: {project}")
+                    except Exception as e:
+                        logger.warning(f"Could not auto-open Cursor: {e}")
+                
+                return {
+                    "success": True,
+                    "mode": "instruction",
+                    "task_file": str(task_file),
+                    "message": f"Task file created: {task_file.name}. Project opened in Cursor."
+                }
+            
+            # Mode: mock - simulate execution for testing
+            elif Config.CURSOR_MODE == "mock":
+                logger.info(f"[MOCK] Simulating task execution: {command[:100]}...")
+                await asyncio.sleep(2)  # Simulate processing time
+                return {
+                    "success": True,
+                    "mode": "mock",
+                    "message": "Task simulated successfully (mock mode)"
+                }
+            
+            # Mode: api - future integration with Cursor API (not yet implemented)
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported CURSOR_MODE: {Config.CURSOR_MODE}"
+                }
+                
         except Exception as e:
             logger.error(f"Cursor execution error: {e}")
             return {"success": False, "error": str(e)}
@@ -522,7 +569,8 @@ class TaskExecutor:
             result = await CursorInterface.execute_command(
                 task.project_path,
                 task.command,
-                timeout=Config.TASK_TIMEOUT
+                timeout=Config.TASK_TIMEOUT,
+                task_id=task.id
             )
             
             # Update task with result
@@ -530,7 +578,8 @@ class TaskExecutor:
             
             if result["success"]:
                 task.status = TaskStatus.COMPLETED
-                task.result = json.dumps(result["result"])
+                # Store result (can be message, task_file path, or actual result)
+                task.result = json.dumps(result.get("message") or result.get("result") or "Success")
                 self.state_manager.update_project_state(
                     task.project_path,
                     completed_tasks=sqlite3.connect(Config.DB_PATH).execute(
@@ -538,17 +587,17 @@ class TaskExecutor:
                         (task.project_path,)
                     ).fetchone()[0] + 1
                 )
-                logger.info(f"Task {task.id} completed successfully")
+                logger.info(f"Task {task.id} completed successfully: {result.get('message', '')}")
                 
-                # Auto-commit if enabled
-                if Config.GIT_AUTO_COMMIT:
+                # Auto-commit if enabled and mode is not instruction (user commits manually)
+                if Config.GIT_AUTO_COMMIT and Config.CURSOR_MODE != "instruction":
                     await GitInterface.auto_commit(
                         task.project_path,
                         f"Auto-commit: {task.description}"
                     )
             else:
                 task.status = TaskStatus.FAILED
-                task.error = result["error"]
+                task.error = result.get("error", "Unknown error")
                 self.state_manager.update_project_state(
                     task.project_path,
                     failed_tasks=sqlite3.connect(Config.DB_PATH).execute(

@@ -98,6 +98,29 @@ Add this configuration:
 
 4. **Restart Claude Desktop**
 
+## 🎨 Cursor Integration
+
+The orchestrator integrates with Cursor in **instruction mode** by default:
+
+1. **Task Creation**: When you execute a task, it creates a `.cursor-tasks/task_<id>.md` file
+2. **Auto-Open**: Automatically opens the project and task file in Cursor
+3. **Manual Execution**: You use Cursor's AI features (Cmd+K or Cmd+L) to implement the task
+4. **Status Tracking**: Task status is tracked in the orchestrator
+
+### Configuration Modes
+
+In `Config` class:
+- **`CURSOR_MODE = "instruction"`** (default) - Creates task files for manual execution
+- **`CURSOR_MODE = "mock"`** - Simulates execution for testing
+- **`AUTO_OPEN_CURSOR = True`** - Automatically opens Cursor with task file
+
+### Cursor CLI Location
+
+The orchestrator automatically uses Cursor CLI from:
+```
+/Applications/Cursor.app/Contents/Resources/app/bin/cursor
+```
+
 ## 🧪 Testing with MCP Inspector
 
 ```bash
