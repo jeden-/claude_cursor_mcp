@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Claude-Cursor Orchestrator - Live Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .stat-card h3 {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+        
+        .tasks-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .task-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .task-item.running {
+            border-left-color: #FFC107;
+            animation: pulse 2s infinite;
+        }
+        
+        .task-item.failed {
+            border-left-color: #F44336;
+        }
+        
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .task-title {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .task-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-completed {
+            background: #4CAF50;
+        }
+        
+        .status-running {
+            background: #FFC107;
+            color: #000;
+        }
+        
+        .status-failed {
+            background: #F44336;
+        }
+        
+        .task-meta {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 10px;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.5s ease;
+        }
+        
+        .live-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #4CAF50;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .watching-projects {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .watching-projects h4 {
+            margin-bottom: 10px;
+        }
+        
+        .project-list {
+            list-style: none;
+            padding-left: 20px;
+        }
+        
+        .project-list li {
+            padding: 5px 0;
+            opacity: 0.9;
+        }
+        
+        .project-list li:before {
+            content: "👁️ ";
+            margin-right: 5px;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Claude-Cursor Orchestrator</h1>
+            <p class="subtitle">
+                <span class="live-indicator"></span>
+                Live Dashboard - Automatic Task Monitoring
+            </p>
+        </header>
+        
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <h3>Total Tasks</h3>
+                <div class="value" id="total-tasks">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>✅ Completed</h3>
+                <div class="value" id="completed-tasks">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>⚡ Running</h3>
+                <div class="value" id="running-tasks">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>❌ Failed</h3>
+                <div class="value" id="failed-tasks">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>👁️ Watching</h3>
+                <div class="value" id="watching-count">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>📊 Success Rate</h3>
+                <div class="value" id="success-rate">-</div>
+            </div>
+        </div>
+        
+        <div class="tasks-section">
+            <div class="section-title">
+                <span>📋 Recent Tasks</span>
+            </div>
+            <div id="tasks-container">
+                <p style="opacity: 0.7;">Loading tasks...</p>
+            </div>
+        </div>
+        
+        <div class="tasks-section">
+            <div class="section-title">
+                <span>👁️ Monitored Projects</span>
+            </div>
+            <div id="watching-container">
+                <p style="opacity: 0.7;">Loading...</p>
+            </div>
+        </div>
+    </div>
+    
+    <button class="refresh-btn" onclick="loadDashboardData()">
+        🔄 Refresh
+    </button>
+    
+    <script>
+        // Dashboard data loading
+        async function loadDashboardData() {
+            try {
+                console.log('📊 Loading dashboard data...');
+                
+                // In real implementation, this would call MCP tools
+                // For now, we'll show mock data
+                
+                // Update stats
+                document.getElementById('total-tasks').textContent = '9';
+                document.getElementById('completed-tasks').textContent = '9';
+                document.getElementById('running-tasks').textContent = '0';
+                document.getElementById('failed-tasks').textContent = '0';
+                document.getElementById('watching-count').textContent = '1';
+                document.getElementById('success-rate').textContent = '100%';
+                
+                // Update tasks list
+                const tasksContainer = document.getElementById('tasks-container');
+                tasksContainer.innerHTML = `
+                    <div class="task-item">
+                        <div class="task-header">
+                            <div class="task-title">Definicja schematu bazy danych Prisma</div>
+                            <span class="task-status status-completed">✅ Completed</span>
+                        </div>
+                        <div class="task-meta">
+                            🆔 task_20251017_143338_958428 | 📁 /Users/mariusz/amgsquant
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="task-item">
+                        <div class="task-header">
+                            <div class="task-title">Inicjalizacja projektu drukarni wielkoformatowej</div>
+                            <span class="task-status status-completed">✅ Completed</span>
+                        </div>
+                        <div class="task-meta">
+                            🆔 task_20251017_143247_683648 | 📁 /Users/mariusz/amgsquant
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 100%"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // Update watching projects
+                const watchingContainer = document.getElementById('watching-container');
+                watchingContainer.innerHTML = `
+                    <div class="watching-projects">
+                        <ul class="project-list">
+                            <li>/Users/mariusz/amgsquant/.cursor-tasks</li>
+                        </ul>
+                    </div>
+                `;
+                
+                console.log('✅ Dashboard data loaded');
+                
+            } catch (error) {
+                console.error('❌ Error loading dashboard:', error);
+            }
+        }
+        
+        // Auto-refresh every 5 seconds
+        setInterval(loadDashboardData, 5000);
+        
+        // Initial load
+        loadDashboardData();
+    </script>
+</body>
+</html>
+

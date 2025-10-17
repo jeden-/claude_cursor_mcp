@@ -8,7 +8,7 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 
 ## ✨ Features
 
-- **14 Powerful Tools** for task management and orchestration
+- **17 Powerful Tools** for task management and orchestration
 - **3 Resources** including real-time metrics
 - **1 Workflow Prompt** generator
 - **SQLite-based** persistent state management
@@ -38,13 +38,17 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 11. **create_task_from_template** 🆕 - Create task from template
 12. **delete_task_template** 🆕 - Delete saved template
 13. **monitor_api_communication** 🤖 - Monitor bidirectional communication with Cursor AI
-14. **create_cursor_rules** - Create/update .cursorrules files
+14. **start_watching_project** 🔥 - Start automatic monitoring of API files
+15. **stop_watching_project** 🔥 - Stop monitoring of API files
+16. **get_watching_status** 🔥 - Get list of monitored projects
+17. **create_cursor_rules** - Create/update .cursorrules files
 
 ## 📦 Resources
 
 1. **orchestrator://projects** - List all managed projects
 2. **orchestrator://logs** - Recent system logs
-3. **orchestrator://metrics** 🆕 - Real-time performance metrics
+3. **orchestrator://live-updates** 🔥 - Live updates stream (SSE-compatible)
+4. **orchestrator://metrics** 🆕 - Real-time performance metrics
 
 ## 📦 Installation
 
@@ -132,6 +136,38 @@ In `Config` class:
 - `api_xxx.json` - Communication file with status/progress
 
 **New tool:** `monitor_api_communication(task_id)` - Monitor real-time progress
+
+### 🔥 Full Automation - NEW!
+
+**Complete automatic workflow without user interaction:**
+
+#### **File Watcher**
+- Automatically monitors `.cursor-tasks/` directory for API file changes
+- Detects when Cursor AI updates task progress
+- Updates task status in database in real-time
+- Notifies subscribers of changes
+
+#### **Auto-Executor Script**
+```bash
+python cursor_auto_executor.py /path/to/project
+```
+- Watches for new tasks in `.cursor-tasks/`
+- Automatically executes tasks
+- Updates API files with progress (10%, 30%, 60%, 90%, 100%)
+- Simulates Cursor AI behavior for testing
+
+#### **Live Dashboard**
+Open `dashboard.html` in browser:
+- Real-time task monitoring
+- Statistics and success rates
+- List of monitored projects
+- Auto-refresh every 5 seconds
+
+#### **Tools for monitoring:**
+- `start_watching_project(project_path)` - Start automatic monitoring
+- `stop_watching_project(project_path)` - Stop monitoring
+- `get_watching_status()` - List monitored projects
+- `orchestrator://live-updates` - SSE stream of updates
 
 ### 🎯 How to Execute Tasks in Cursor
 

@@ -14,6 +14,8 @@ from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, asdict
 from enum import Enum
 import logging
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 
 from mcp.server.fastmcp import FastMCP
 
@@ -574,12 +576,15 @@ This task uses bidirectional communication with Claude Desktop.
                     except Exception as e:
                         logger.warning(f"Could not auto-open Cursor: {e}")
                 
+                # Start watching this project for API updates
+                api_monitor.watch_project(project_path)
+                
                 return {
                     "success": True,
                     "mode": "api",
                     "task_file": str(task_file),
                     "api_file": str(api_file),
-                    "message": f"API communication established. Task: {task_file.name}, API: {api_file.name}"
+                    "message": f"API communication established. Task: {task_file.name}, API: {api_file.name}. Monitoring for updates..."
                 }
             
             # Unsupported mode
@@ -669,6 +674,154 @@ class GitInterface:
         except Exception as e:
             logger.error(f"Git commit error: {e}")
             return False
+
+# ============================================================================
+# FILE WATCHER FOR API COMMUNICATION
+# ============================================================================
+
+class APIFileWatcher(FileSystemEventHandler):
+    """Watches for changes in API communication files"""
+    
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+        self.last_modified = {}
+        
+    def on_modified(self, event):
+        """Handle file modification events"""
+        if event.is_directory:
+            return
+            
+        if not event.src_path.endswith('.json'):
+            return
+            
+        if 'api_' not in event.src_path:
+            return
+            
+        # Debounce - ignore rapid consecutive modifications
+        now = datetime.now().timestamp()
+        if event.src_path in self.last_modified:
+            if now - self.last_modified[event.src_path] < 1.0:
+                return
+        
+        self.last_modified[event.src_path] = now
+        
+        # Trigger callback in thread-safe way
+        try:
+            loop = asyncio.get_running_loop()
+            loop.call_soon_threadsafe(
+                lambda: asyncio.create_task(self.callback(event.src_path))
+            )
+        except RuntimeError:
+            # No event loop running, try to schedule for later
+            try:
+                asyncio.run(self.callback(event.src_path))
+            except Exception as e:
+                logger.error(f"Failed to handle API file update: {e}")
+
+class APIFileMonitor:
+    """Monitors API communication files across all projects"""
+    
+    def __init__(self):
+        self.observers = {}
+        self.subscribers = []  # Callbacks for notifications
+        
+    async def handle_api_update(self, file_path: str):
+        """Handle API file update"""
+        try:
+            logger.info(f"🔔 API file updated: {file_path}")
+            
+            # Read updated API data
+            api_data = json.loads(Path(file_path).read_text())
+            
+            task_id = api_data.get('task_id')
+            status = api_data.get('status')
+            progress = api_data.get('progress', 0)
+            message = api_data.get('message', '')
+            
+            # Update task in database
+            task = state_manager.get_task(task_id)
+            if task:
+                # Update task status based on API status
+                if status == 'in_progress':
+                    task.status = TaskStatus.RUNNING
+                elif status == 'completed':
+                    task.status = TaskStatus.COMPLETED
+                    task.completed_at = datetime.now().isoformat()
+                    task.result = api_data.get('result', 'Task completed')
+                elif status == 'failed':
+                    task.status = TaskStatus.FAILED
+                    task.error = api_data.get('error', 'Unknown error')
+                    
+                state_manager.save_task(task)
+                
+                logger.info(f"✅ Task {task_id} updated: {status} ({progress}%) - {message}")
+                
+                # Notify subscribers
+                notification = {
+                    'type': 'task_update',
+                    'task_id': task_id,
+                    'status': status,
+                    'progress': progress,
+                    'message': message,
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                for subscriber in self.subscribers:
+                    try:
+                        await subscriber(notification)
+                    except Exception as e:
+                        logger.error(f"Subscriber notification failed: {e}")
+                        
+        except Exception as e:
+            logger.error(f"Error handling API update: {e}")
+    
+    def watch_project(self, project_path: str):
+        """Start watching a project's .cursor-tasks directory"""
+        tasks_dir = Path(project_path) / ".cursor-tasks"
+        
+        if not tasks_dir.exists():
+            tasks_dir.mkdir(parents=True, exist_ok=True)
+            
+        if str(tasks_dir) in self.observers:
+            return  # Already watching
+            
+        try:
+            observer = Observer()
+            handler = APIFileWatcher(self.handle_api_update)
+            observer.schedule(handler, str(tasks_dir), recursive=False)
+            observer.start()
+            
+            self.observers[str(tasks_dir)] = observer
+            logger.info(f"👁️  Watching API files in: {tasks_dir}")
+            
+        except Exception as e:
+            logger.error(f"Failed to start watching {tasks_dir}: {e}")
+    
+    def stop_watching(self, project_path: str):
+        """Stop watching a project"""
+        tasks_dir = str(Path(project_path) / ".cursor-tasks")
+        
+        if tasks_dir in self.observers:
+            self.observers[tasks_dir].stop()
+            self.observers[tasks_dir].join()
+            del self.observers[tasks_dir]
+            logger.info(f"Stopped watching: {tasks_dir}")
+    
+    def stop_all(self):
+        """Stop all observers"""
+        for observer in self.observers.values():
+            observer.stop()
+            observer.join()
+        self.observers.clear()
+        logger.info("Stopped all file watchers")
+    
+    def subscribe(self, callback):
+        """Subscribe to API notifications"""
+        self.subscribers.append(callback)
+
+# Global API monitor
+api_monitor = APIFileMonitor()
 
 # ============================================================================
 # TASK EXECUTOR
@@ -1457,6 +1610,62 @@ async def monitor_api_communication(task_id: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 @mcp.tool()
+async def start_watching_project(project_path: str) -> Dict[str, Any]:
+    """
+    Start monitoring API communication files for a project.
+    
+    Args:
+        project_path: Project directory path
+        
+    Returns:
+        Confirmation that watching has started
+    """
+    try:
+        api_monitor.watch_project(project_path)
+        return {
+            "success": True,
+            "message": f"Started monitoring API files in {project_path}/.cursor-tasks/",
+            "watching": list(api_monitor.observers.keys())
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def stop_watching_project(project_path: str) -> Dict[str, Any]:
+    """
+    Stop monitoring API communication files for a project.
+    
+    Args:
+        project_path: Project directory path
+        
+    Returns:
+        Confirmation that watching has stopped
+    """
+    try:
+        api_monitor.stop_watching(project_path)
+        return {
+            "success": True,
+            "message": f"Stopped monitoring {project_path}",
+            "watching": list(api_monitor.observers.keys())
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+@mcp.tool()
+async def get_watching_status() -> Dict[str, Any]:
+    """
+    Get list of projects currently being monitored.
+    
+    Returns:
+        List of projects with active file watchers
+    """
+    return {
+        "watching_projects": list(api_monitor.observers.keys()),
+        "count": len(api_monitor.observers),
+        "subscribers": len(api_monitor.subscribers)
+    }
+
+@mcp.tool()
 async def get_system_stats() -> Dict[str, Any]:
     """
     Get overall system statistics and health.
@@ -1527,6 +1736,50 @@ async def list_all_projects() -> str:
         result += f"- Git Branch: {p[6] or 'N/A'}\n\n"
     
     return result
+
+@mcp.resource("orchestrator://live-updates")
+async def get_live_updates() -> str:
+    """
+    Get live updates stream (SSE-compatible format).
+    Returns recent notifications from API file watcher.
+    """
+    # Get recent activity log
+    conn = sqlite3.connect(Config.DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM activity_log 
+        WHERE action IN ('task_completed', 'task_failed', 'task_started')
+        ORDER BY timestamp DESC 
+        LIMIT 50
+    """)
+    
+    rows = cursor.fetchall()
+    conn.close()
+    
+    updates = []
+    for row in rows:
+        updates.append({
+            "id": row[0],
+            "timestamp": row[1],
+            "action": row[2],
+            "project_path": row[3],
+            "task_id": row[4],
+            "details": json.loads(row[5]) if row[5] else None
+        })
+    
+    output = "# Live Updates Stream\n\n"
+    output += f"**Total Updates:** {len(updates)}\n\n"
+    
+    for update in updates[:20]:
+        output += f"## {update['action'].upper()}\n"
+        output += f"- **Time:** {update['timestamp']}\n"
+        output += f"- **Task:** {update['task_id']}\n"
+        output += f"- **Project:** {update['project_path']}\n"
+        if update['details']:
+            output += f"- **Details:** {json.dumps(update['details'], indent=2)}\n"
+        output += "\n"
+    
+    return output
 
 @mcp.resource("orchestrator://metrics")
 async def get_realtime_metrics() -> str:
