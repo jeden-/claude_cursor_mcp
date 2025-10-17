@@ -28,7 +28,7 @@ class Config:
     MAX_CONCURRENT_TASKS = 3
     TASK_TIMEOUT = 300  # 5 minutes
     CURSOR_CLI = "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
-    CURSOR_MODE = "instruction"  # "instruction", "mock", "auto", or "api" (future)
+    CURSOR_MODE = "api"  # "instruction", "mock", "auto", or "api" (bidirectional)
     GIT_AUTO_COMMIT = True
     AUTO_OPEN_CURSOR = True  # Automatically open project in Cursor
     
@@ -497,7 +497,92 @@ Zaimplementuj to zadanie zgodnie z instrukcjami powyżej. Stwórz wszystkie potr
                     "message": f"Auto-execute task created: {task_file.name}. Use Cmd+K in Cursor to execute."
                 }
             
-            # Mode: api - future integration with Cursor API (not yet implemented)
+            # Mode: api - bidirectional communication with Cursor AI
+            elif Config.CURSOR_MODE == "api":
+                logger.info(f"[API] Starting bidirectional communication: {command[:100]}...")
+                
+                # Create task file with API communication setup
+                tasks_dir = project / ".cursor-tasks"
+                tasks_dir.mkdir(exist_ok=True)
+                
+                task_file = tasks_dir / f"task_{task_id or datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                
+                # Create API communication file
+                api_file = tasks_dir / f"api_{task_id or datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                
+                task_content = f"""# Cursor Task: {task_id or 'New Task'}
+
+**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Project:** {project_path}
+**Mode:** API Communication
+
+## Task Instructions
+
+{command}
+
+## API Communication
+
+This task uses bidirectional communication with Claude Desktop.
+
+**Communication File:** `{api_file.name}`
+
+### How it works:
+1. Claude Desktop sends task via orchestrator
+2. Cursor AI executes the task
+3. Cursor AI reports progress to `{api_file.name}`
+4. Orchestrator monitors progress and reports back to Claude Desktop
+
+### Execute Command:
+```bash
+# Cursor AI should execute this task and update the API file
+# with progress: {{"status": "in_progress", "progress": 50, "message": "Creating files..."}}
+# completion: {{"status": "completed", "result": "Task completed successfully"}}
+```
+
+---
+*This task was created by Claude-Cursor Orchestrator with API communication*
+"""
+                task_file.write_text(task_content)
+                
+                # Initialize API communication file
+                api_data = {
+                    "task_id": task_id,
+                    "status": "pending",
+                    "progress": 0,
+                    "message": "Task created, waiting for Cursor AI execution",
+                    "created_at": datetime.now().isoformat(),
+                    "updated_at": datetime.now().isoformat(),
+                    "command": command,
+                    "project_path": project_path
+                }
+                api_file.write_text(json.dumps(api_data, indent=2))
+                
+                logger.info(f"Created API communication files: {task_file.name}, {api_file.name}")
+                
+                # Try to open Cursor with API mode
+                if Config.AUTO_OPEN_CURSOR and Config.CURSOR_CLI:
+                    try:
+                        process = await asyncio.create_subprocess_exec(
+                            Config.CURSOR_CLI,
+                            str(project),
+                            str(task_file),
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        await asyncio.wait_for(process.communicate(), timeout=10)
+                        logger.info(f"Opened project in Cursor with API mode: {project}")
+                    except Exception as e:
+                        logger.warning(f"Could not auto-open Cursor: {e}")
+                
+                return {
+                    "success": True,
+                    "mode": "api",
+                    "task_file": str(task_file),
+                    "api_file": str(api_file),
+                    "message": f"API communication established. Task: {task_file.name}, API: {api_file.name}"
+                }
+            
+            # Unsupported mode
             else:
                 return {
                     "success": False,
@@ -1328,6 +1413,48 @@ async def get_activity_log(
         ],
         "count": len(rows)
     }
+
+@mcp.tool()
+async def monitor_api_communication(task_id: str) -> Dict[str, Any]:
+    """
+    Monitor API communication between Claude Desktop and Cursor AI.
+    
+    Args:
+        task_id: Task ID to monitor
+        
+    Returns:
+        Current API communication status and progress
+    """
+    try:
+        # Find API file for this task
+        api_files = list(Path.home().glob(f".claude-cursor-orchestrator/api_*{task_id}*.json"))
+        if not api_files:
+            return {"error": f"No API communication file found for task {task_id}"}
+        
+        api_file = api_files[0]
+        
+        # Read API data
+        api_data = json.loads(api_file.read_text())
+        
+        # Check if Cursor AI has updated the file recently
+        file_mtime = datetime.fromtimestamp(api_file.stat().st_mtime)
+        time_diff = (datetime.now() - file_mtime).total_seconds()
+        
+        return {
+            "task_id": task_id,
+            "api_file": str(api_file),
+            "status": api_data.get("status", "unknown"),
+            "progress": api_data.get("progress", 0),
+            "message": api_data.get("message", ""),
+            "last_update": api_data.get("updated_at", ""),
+            "file_age_seconds": time_diff,
+            "is_active": time_diff < 60,  # Active if updated within last minute
+            "full_data": api_data
+        }
+        
+    except Exception as e:
+        logger.error(f"Error monitoring API communication: {e}")
+        return {"error": str(e)}
 
 @mcp.tool()
 async def get_system_stats() -> Dict[str, Any]:

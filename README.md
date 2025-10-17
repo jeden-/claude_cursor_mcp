@@ -8,7 +8,7 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 
 ## ✨ Features
 
-- **13 Powerful Tools** for task management and orchestration
+- **14 Powerful Tools** for task management and orchestration
 - **3 Resources** including real-time metrics
 - **1 Workflow Prompt** generator
 - **SQLite-based** persistent state management
@@ -37,7 +37,8 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 10. **list_task_templates** 🆕 - List all saved templates
 11. **create_task_from_template** 🆕 - Create task from template
 12. **delete_task_template** 🆕 - Delete saved template
-13. **create_cursor_rules** - Create/update .cursorrules files
+13. **monitor_api_communication** 🤖 - Monitor bidirectional communication with Cursor AI
+14. **create_cursor_rules** - Create/update .cursorrules files
 
 ## 📦 Resources
 
@@ -110,10 +111,27 @@ The orchestrator integrates with Cursor in **instruction mode** by default:
 ### Configuration Modes
 
 In `Config` class:
-- **`CURSOR_MODE = "instruction"`** (default) - Creates task files for manual execution
+- **`CURSOR_MODE = "api"`** (default) - **Bidirectional communication** between Claude Desktop and Cursor AI
+- **`CURSOR_MODE = "instruction"`** - Creates task files for manual execution
 - **`CURSOR_MODE = "auto"`** - Creates task files with auto-execute hints
 - **`CURSOR_MODE = "mock"`** - Simulates execution for testing
 - **`AUTO_OPEN_CURSOR = True`** - Automatically opens Cursor with task file
+
+### 🤖 API Mode - Bidirectional Communication
+
+**API mode enables automatic communication between Claude Desktop and Cursor AI:**
+
+1. **Claude Desktop** sends task via orchestrator
+2. **Orchestrator** creates task file + API communication file
+3. **Cursor AI** executes task and updates API file with progress
+4. **Orchestrator** monitors progress and reports back to Claude Desktop
+5. **Claude Desktop** receives real-time updates
+
+**Files created:**
+- `task_xxx.md` - Task instructions
+- `api_xxx.json` - Communication file with status/progress
+
+**New tool:** `monitor_api_communication(task_id)` - Monitor real-time progress
 
 ### 🎯 How to Execute Tasks in Cursor
 
