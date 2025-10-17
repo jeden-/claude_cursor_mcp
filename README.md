@@ -111,8 +111,25 @@ The orchestrator integrates with Cursor in **instruction mode** by default:
 
 In `Config` class:
 - **`CURSOR_MODE = "instruction"`** (default) - Creates task files for manual execution
+- **`CURSOR_MODE = "auto"`** - Creates task files with auto-execute hints
 - **`CURSOR_MODE = "mock"`** - Simulates execution for testing
 - **`AUTO_OPEN_CURSOR = True`** - Automatically opens Cursor with task file
+
+### 🎯 How to Execute Tasks in Cursor
+
+**Method 1: Cmd+K (Composer)**
+1. Open task file in Cursor
+2. Press `Cmd+K`
+3. Type: `Zaimplementuj to zadanie zgodnie z instrukcjami`
+4. Cursor AI will execute the code
+
+**Method 2: Cmd+L (Chat)**
+1. Press `Cmd+L`
+2. Type: `Przeczytaj plik zadania i zaimplementuj schemat`
+3. Cursor AI will analyze and execute
+
+**Method 3: Auto Mode**
+Set `CURSOR_MODE = "auto"` for task files with built-in execution hints.
 
 ### Cursor CLI Location
 

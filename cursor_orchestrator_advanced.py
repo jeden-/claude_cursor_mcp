@@ -28,7 +28,7 @@ class Config:
     MAX_CONCURRENT_TASKS = 3
     TASK_TIMEOUT = 300  # 5 minutes
     CURSOR_CLI = "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"
-    CURSOR_MODE = "instruction"  # "instruction", "mock", or "api" (future)
+    CURSOR_MODE = "instruction"  # "instruction", "mock", "auto", or "api" (future)
     GIT_AUTO_COMMIT = True
     AUTO_OPEN_CURSOR = True  # Automatically open project in Cursor
     
@@ -441,6 +441,60 @@ class CursorInterface:
                     "success": True,
                     "mode": "mock",
                     "message": "Task simulated successfully (mock mode)"
+                }
+            
+            # Mode: auto - try to auto-execute via Cursor CLI (experimental)
+            elif Config.CURSOR_MODE == "auto":
+                logger.info(f"[AUTO] Attempting auto-execution: {command[:100]}...")
+                
+                # Create task file first
+                tasks_dir = project / ".cursor-tasks"
+                tasks_dir.mkdir(exist_ok=True)
+                
+                task_file = tasks_dir / f"task_{task_id or datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+                task_content = f"""# Cursor Task: {task_id or 'New Task'}
+
+**Created:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Project:** {project_path}
+
+## Task Instructions
+
+{command}
+
+## Auto-Execute Command
+
+Execute this task using Cursor AI (Cmd+K):
+```
+Zaimplementuj to zadanie zgodnie z instrukcjami powyżej. Stwórz wszystkie potrzebne pliki i struktury.
+```
+
+---
+*This task was created by Claude-Cursor Orchestrator*
+"""
+                task_file.write_text(task_content)
+                logger.info(f"Created auto-execute task file: {task_file}")
+                
+                # Try to open Cursor with auto-execute hint
+                if Config.AUTO_OPEN_CURSOR and Config.CURSOR_CLI:
+                    try:
+                        # Open Cursor with the task file
+                        process = await asyncio.create_subprocess_exec(
+                            Config.CURSOR_CLI,
+                            str(project),
+                            str(task_file),
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        await asyncio.wait_for(process.communicate(), timeout=10)
+                        logger.info(f"Opened project in Cursor: {project}")
+                    except Exception as e:
+                        logger.warning(f"Could not auto-open Cursor: {e}")
+                
+                return {
+                    "success": True,
+                    "mode": "auto",
+                    "task_file": str(task_file),
+                    "message": f"Auto-execute task created: {task_file.name}. Use Cmd+K in Cursor to execute."
                 }
             
             # Mode: api - future integration with Cursor API (not yet implemented)
