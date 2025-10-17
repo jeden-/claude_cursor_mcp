@@ -1917,10 +1917,10 @@ async def get_realtime_metrics() -> str:
         conn.close()
         
         # Format as markdown
-        result = "# 📊 Real-Time Metrics\n\n"
+        result = "# Real-Time Metrics\n\n"
         result += f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
-        result += "## 🎯 Task Statistics\n\n"
+        result += "## Task Statistics\n\n"
         result += f"- **Success Rate**: {success_rate:.1f}%\n"
         result += f"- **Avg Completion Time**: {avg_completion_time:.1f}s\n"
         result += f"- **Completed**: {total_completed}\n"
@@ -1928,30 +1928,30 @@ async def get_realtime_metrics() -> str:
         result += f"- **Currently Running**: {running_count}\n"
         result += f"- **In Queue**: {queue_size}\n\n"
         
-        result += "## 📈 Status Breakdown\n\n"
+        result += "## Status Breakdown\n\n"
         for status, count in status_counts.items():
             result += f"- {status}: {count}\n"
         result += "\n"
         
-        result += "## ⭐ Priority Distribution\n\n"
+        result += "## Priority Distribution\n\n"
         priority_names = {1: "LOW", 2: "MEDIUM", 3: "HIGH", 4: "CRITICAL"}
         for priority, count in sorted(priority_counts.items()):
             result += f"- {priority_names.get(priority, priority)}: {count}\n"
         result += "\n"
         
-        result += "## 🔥 Top Projects\n\n"
+        result += "## Top Projects\n\n"
         for project_path, count in top_projects:
             project_name = Path(project_path).name
             result += f"- **{project_name}**: {count} tasks\n"
         result += "\n"
         
-        result += "## 📝 Template Usage\n\n"
+        result += "## Template Usage\n\n"
         result += f"- **Templates**: {template_count}\n"
         result += f"- **Total Uses**: {template_uses}\n"
         result += f"- **Avg Uses per Template**: {(template_uses / template_count):.1f}\n" if template_count > 0 else "- **Avg Uses per Template**: 0\n"
         result += "\n"
         
-        result += "## ⚡ Recent Activity (Last Hour)\n\n"
+        result += "## Recent Activity (Last Hour)\n\n"
         if recent_activity:
             for event, count in sorted(recent_activity.items(), key=lambda x: x[1], reverse=True):
                 result += f"- {event}: {count}\n"
@@ -1968,7 +1968,7 @@ async def get_realtime_metrics() -> str:
         
     except Exception as e:
         logger.error(f"Error generating metrics: {e}")
-        return f"# ❌ Error\n\nFailed to generate metrics: {e}"
+        return f"# Error\n\nFailed to generate metrics: {e}"
 
 @mcp.resource("orchestrator://logs")
 async def get_recent_logs() -> str:
@@ -1986,15 +1986,15 @@ async def get_sprint_template() -> str:
     Get professional sprint template for structured development.
     Based on proven patterns from production projects (MTQuant style).
     """
-    return """# 🚀 Sprint Template - Professional Development Plan
+    return """# Sprint Template - Professional Development Plan
 
-## 📋 Overview
+## Overview
 This template provides a structured approach to development sprints with Cursor AI integration.
 Based on proven patterns from production projects.
 
 ---
 
-## 🎯 Sprint Structure
+## Sprint Structure
 
 ### Sprint Header
 ```markdown
@@ -2028,7 +2028,7 @@ Based on proven patterns from production projects.
 
 ---
 
-## 📅 Daily Structure
+## Daily Structure
 
 ### DAY X - [Phase Name]
 
@@ -2071,7 +2071,7 @@ Testing:
 
 ---
 
-## 📊 Best Practices
+## Best Practices
 
 ### 1. Task Granularity
 - Each task: 30-120 minutes
@@ -2110,7 +2110,7 @@ After each task:
 
 ---
 
-## 🔗 Integration with Orchestrator
+## Integration with Orchestrator
 
 ### Simple Task Execution:
 ```
@@ -2148,7 +2148,7 @@ get_watching_status()
 
 ---
 
-## 💡 Pro Tips
+## Pro Tips
 
 ### For Complex Tasks
 Break into subtasks with checkboxes:
@@ -2179,7 +2179,7 @@ Include benchmarks in verification:
 
 ---
 
-**✅ Use this template to create structured, trackable sprints!**
+Use this template to create structured, trackable sprints.
 
 To generate a filled sprint plan, use the MCP prompt:
 `sprint_generator_prompt(project_name="...", sprint_goal="...", ...)`
@@ -2191,9 +2191,9 @@ async def get_communication_guide() -> str:
     Get complete guide for Claude-Cursor communication.
     This resource provides context for how to interact with Cursor AI.
     """
-    return """# 📋 Komunikacja z Cursor - Instrukcje dla Claude Desktop
+    return """# Komunikacja z Cursor - Instrukcje dla Claude Desktop
 
-## 🎯 Jak komunikować się z Cursor AI
+## Jak komunikować się z Cursor AI
 
 Gdy wysyłasz zadanie do Cursor AI przez orchestrator, masz kilka opcji komunikacji:
 
@@ -2294,7 +2294,7 @@ Orchestrator automatycznie tworzy:
 
 ---
 
-## 🎯 Którą metodę wybrać?
+## Którą metodę wybrać?
 
 ### **Dla prostych zadań (1-2 kroki):**
 → **Metoda 1** - pojedyncze zadanie
@@ -2341,7 +2341,7 @@ Orchestrator automatycznie aktualizuje status gdy:
 
 ---
 
-## 💡 Best Practices:
+## Best Practices:
 
 1. **Bądź konkretny** - im jaśniejsze instrukcje, tym lepszy wynik
 2. **Używaj kontekstu** - dodaj ważne pliki/ścieżki do instrukcji
@@ -2351,7 +2351,7 @@ Orchestrator automatycznie aktualizuje status gdy:
 
 ---
 
-## 🎯 Przykład: Supervisor workflow
+## Przykład: Supervisor workflow
 
 Najlepszy sposób dla zadań wymagających weryfikacji:
 
@@ -2381,7 +2381,7 @@ supervise_cursor_task(
 
 ---
 
-## 🚀 TL;DR (Quick Reference)
+## Quick Reference (TL;DR)
 
 **Wysyłanie zadań:**
 - `execute_cursor_task()` - podstawowe zadanie
@@ -2401,7 +2401,7 @@ supervise_cursor_task(
 
 ---
 
-**✅ Używaj tych instrukcji za każdym razem gdy komunikujesz się z Cursor AI!**
+Używaj tych instrukcji za każdym razem gdy komunikujesz się z Cursor AI.
 """
 
 # ============================================================================
@@ -2678,7 +2678,7 @@ Jeśli task fails:
 
 ---
 
-## 🎯 Using This Sprint with Orchestrator:
+## Using This Sprint with Orchestrator:
 
 ### Send task to Cursor:
 ```python
@@ -2719,7 +2719,7 @@ supervise_cursor_task(
 
 ---
 
-**✅ Ten sprint plan jest gotowy do użycia z claude-cursor-orchestrator!**
+Ten sprint plan jest gotowy do użycia z claude-cursor-orchestrator.
 
 Now fill in the specific tasks for {project_name} based on {sprint_goal}.
 Each day should have 3-5 tasks, each taking 30-120 minutes.
