@@ -1980,6 +1980,211 @@ async def get_recent_logs() -> str:
     except Exception as e:
         return f"Error reading logs: {e}"
 
+@mcp.resource("orchestrator://sprint-template")
+async def get_sprint_template() -> str:
+    """
+    Get professional sprint template for structured development.
+    Based on proven patterns from production projects (MTQuant style).
+    """
+    return """# 🚀 Sprint Template - Professional Development Plan
+
+## 📋 Overview
+This template provides a structured approach to development sprints with Cursor AI integration.
+Based on proven patterns from production projects.
+
+---
+
+## 🎯 Sprint Structure
+
+### Sprint Header
+```markdown
+# [Project Name] - Sprint [Number]
+
+**Duration:** [X] dni (full-time work)  
+**Goal:** [Sprint goal description]
+
+---
+
+## Sprint Overview
+
+### Objectives
+1. [Objective 1]
+2. [Objective 2]
+3. [Objective 3]
+
+### Prerequisites
+- [Prerequisite 1]
+- [Prerequisite 2]
+
+### Tech Stack
+- [Technology 1]
+- [Technology 2]
+
+### Architecture
+```
+[ASCII diagram of system architecture]
+```
+```
+
+---
+
+## 📅 Daily Structure
+
+### DAY X - [Phase Name]
+
+#### Objectives
+- [Daily objective 1]
+- [Daily objective 2]
+
+#### Task X.Y: [Task Name] ([Time Estimate])
+
+**Cursor AI Prompt:**
+```
+[Detailed instructions for Cursor AI - copy-paste ready]
+
+Requirements:
+1. [Requirement 1]
+2. [Requirement 2]
+
+Implementation:
+```language
+[Code example/structure]
+```
+
+Testing:
+- [Test requirement 1]
+- [Test requirement 2]
+```
+
+**Manual Steps:**
+```bash
+[Commands to run after Cursor completes]
+```
+
+**Verification:**
+- [ ] [Check 1]
+- [ ] [Check 2]
+- [ ] [Check 3]
+
+**Expected Outcome:**
+[Description of what should work]
+
+---
+
+## 📊 Best Practices
+
+### 1. Task Granularity
+- Each task: 30-120 minutes
+- Atomic and testable
+- Clear success criteria
+
+### 2. Cursor AI Prompts
+**Good prompt structure:**
+```
+[Action] [Target] [Purpose]
+
+Requirements:
+- Specific, measurable requirements
+
+Implementation:
+- Code examples
+- Architecture guidance
+
+Testing:
+- Test scenarios
+```
+
+### 3. Verification
+After each task:
+- [ ] Code works locally
+- [ ] Tests pass
+- [ ] Linter happy
+- [ ] Type checking passes
+- [ ] Git commit created
+- [ ] Docs updated
+
+### 4. Day-End Review
+- Completed tasks
+- Blockers identified
+- Plan for tomorrow
+
+---
+
+## 🔗 Integration with Orchestrator
+
+### Simple Task Execution:
+```
+execute_cursor_task(
+    project_path="/path/to/project",
+    command="[Cursor AI Prompt from sprint]",
+    priority="high"
+)
+```
+
+### Supervised Execution (with verification):
+```
+supervise_cursor_task(
+    project_path="/path/to/project",
+    task_description="[Task name]",
+    acceptance_criteria=[
+        "[Check from Verification section]",
+        ...
+    ],
+    max_iterations=3
+)
+```
+
+### Progress Monitoring:
+```
+# Check status
+get_task_status(task_id="task_xxx")
+
+# Watch project for changes
+start_watching_project(project_path="/path/to/project")
+
+# View all monitored projects
+get_watching_status()
+```
+
+---
+
+## 💡 Pro Tips
+
+### For Complex Tasks
+Break into subtasks with checkboxes:
+```
+[ ] 1. Create base structure
+[ ] 2. Add core functionality
+[ ] 3. Write tests
+[ ] 4. Add documentation
+```
+
+### For Multi-File Changes
+Specify all files in prompt:
+```
+Update authentication system across:
+- backend/auth/service.py
+- backend/auth/models.py
+- backend/tests/test_auth.py
+```
+
+### For Performance-Critical Code
+Include benchmarks in verification:
+```
+**Verification:**
+- [ ] Response time < 100ms (p95)
+- [ ] Memory usage < 256MB
+- [ ] Load test passes (1000 req/s)
+```
+
+---
+
+**✅ Use this template to create structured, trackable sprints!**
+
+To generate a filled sprint plan, use the MCP prompt:
+`sprint_generator_prompt(project_name="...", sprint_goal="...", ...)`
+"""
+
 @mcp.resource("orchestrator://communication-guide")
 async def get_communication_guide() -> str:
     """
@@ -2242,6 +2447,282 @@ Goal: {goal}
 - Allow Cursor time to complete complex operations
 - Use context parameter to pass relevant information
 - Monitor for errors and adjust strategy accordingly
+"""
+
+@mcp.prompt()
+def sprint_generator_prompt(
+    project_name: str,
+    sprint_goal: str,
+    duration_days: int = 7,
+    tech_stack: str = "",
+    prerequisites: str = ""
+) -> str:
+    """
+    Generate a professional sprint plan for Cursor AI execution.
+    
+    Based on proven patterns from production projects (MTQuant style).
+    Creates day-by-day breakdown with ready-to-use Cursor AI prompts.
+    """
+    return f"""# {project_name} - Sprint Plan
+
+**Duration:** {duration_days} dni (full-time work)  
+**Goal:** {sprint_goal}
+
+---
+
+## Sprint Overview
+
+### Objectives
+{sprint_goal}
+
+### Prerequisites
+{prerequisites if prerequisites else "- Project initialized\\n- Development environment ready\\n- Git configured"}
+
+### Tech Stack
+{tech_stack if tech_stack else "- To be specified based on project requirements"}
+
+---
+
+## Sprint Structure Guidelines
+
+### Format każdego dnia:
+
+## DAY X - [Phase Name]
+
+### Task X.Y: [Task Name] ([Time Estimate])
+
+**Cursor AI Prompt:**
+```
+[Detailed instructions for Cursor AI]
+
+Requirements:
+1. [Specific requirement 1]
+2. [Specific requirement 2]
+3. ...
+
+Implementation details:
+- [Detail 1]
+- [Detail 2]
+
+Expected structure:
+```python
+# Example code structure
+class ExampleClass:
+    \"\"\"Docstring explaining purpose\"\"\"
+    
+    def method_name(self, param1: Type1) -> ReturnType:
+        \"\"\"Method description\"\"\"
+        pass
+```
+
+Testing requirements:
+- Unit tests for all public methods
+- Integration tests for external dependencies
+- Performance benchmarks if applicable
+```
+
+**Manual Steps:**
+```bash
+# Commands to run after Cursor completes the task
+command1
+command2
+```
+
+**Verification:**
+- [ ] File `path/to/file.py` created
+- [ ] All tests passing (`pytest path/to/tests/`)
+- [ ] Code formatted (black/ruff)
+- [ ] Type hints validated (mypy)
+- [ ] Documentation updated
+
+**Expected Outcome:**
+Brief description of what should work after this task.
+
+---
+
+## Best Practices for Sprint Execution:
+
+### 1. Task Granularity
+- Każdy task: 30-120 minut pracy
+- Jeśli dłużej → podziel na subtaski
+- Atomic commits po każdym tasku
+
+### 2. Cursor AI Prompts
+**Struktura idealnego promptu:**
+```
+[Action] [Target] [Purpose]
+
+Requirements:
+- [Req 1]
+- [Req 2]
+
+Implementation:
+[Detailed specs with code examples]
+
+Testing:
+[Test requirements]
+```
+
+**Przykład dobrego promptu:**
+```
+Create user authentication module for FastAPI backend.
+
+Requirements:
+- JWT token-based authentication
+- Password hashing with bcrypt
+- Email/password login endpoint
+- Token refresh endpoint
+
+Implementation:
+```python
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, EmailStr
+import bcrypt
+import jwt
+
+router = APIRouter(prefix="/auth")
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+@router.post("/login")
+async def login(request: LoginRequest):
+    # Implementation here
+    pass
+```
+
+Testing:
+- pytest fixtures for test users
+- Test successful login
+- Test invalid credentials
+- Test token validation
+```
+
+### 3. Verification Checklists
+Po każdym tasku sprawdź:
+- [ ] Kod działa lokalnie
+- [ ] Testy przechodzą
+- [ ] Linter happy (no errors/warnings)
+- [ ] Type checking passes
+- [ ] Git commit created
+- [ ] Documentation updated
+
+### 4. Day-End Review
+Na koniec każdego dnia:
+1. Przegląd zrobionych tasków
+2. Update sprint backlog
+3. Identyfikacja blockerów
+4. Plan na następny dzień
+
+### 5. Communication with Cursor
+**Use checkboxes for multi-step tasks:**
+```
+Implement payment processing:
+
+[ ] 1. Create Payment model
+[ ] 2. Add Stripe integration
+[ ] 3. Create payment endpoints
+[ ] 4. Add payment webhooks
+[ ] 5. Write tests
+```
+
+**Monitor progress:**
+- Po każdym tasku: `get_task_status(task_id)`
+- Jeśli stuck >30 min: sprawdź Cursor manually (Cmd+K)
+- Jeśli errors: użyj `retry_task(task_id)`
+
+### 6. Error Handling
+Jeśli task fails:
+1. Przeczytaj error message
+2. Sprawdź logi: `orchestrator://logs`
+3. Fix i retry: `retry_task(task_id, context="Fix: [problem]")`
+4. Jeśli 3x retry fails → manual intervention
+
+---
+
+## Template dla nowego dnia:
+
+## DAY X - [Phase Name]
+
+### Objectives
+- [Objective 1]
+- [Objective 2]
+
+### Task X.1: [Task Name] ([Time])
+
+**Cursor AI Prompt:**
+```
+[Prompt content]
+```
+
+**Verification:**
+- [ ] [Check 1]
+- [ ] [Check 2]
+
+**Expected Outcome:**
+[Outcome description]
+
+---
+
+### Task X.2: [Task Name] ([Time])
+
+[Repeat structure]
+
+---
+
+## End-of-Day Review
+- **Completed:** [List of completed tasks]
+- **Blockers:** [Any issues]
+- **Tomorrow:** [Plan for next day]
+
+---
+
+## 🎯 Using This Sprint with Orchestrator:
+
+### Send task to Cursor:
+```python
+execute_cursor_task(
+    project_path="/path/to/project",
+    command='''
+    [Copy Cursor AI Prompt from sprint plan]
+    ''',
+    priority="high"
+)
+```
+
+### Monitor progress:
+```python
+# Check status
+get_task_status(task_id="task_xxx")
+
+# Watch project
+start_watching_project(project_path="/path/to/project")
+
+# Get updates
+get_watching_status()
+```
+
+### For complex tasks with verification:
+```python
+supervise_cursor_task(
+    project_path="/path/to/project",
+    task_description="[Task from sprint]",
+    acceptance_criteria=[
+        "[Check 1 from Verification]",
+        "[Check 2 from Verification]",
+        # ...
+    ],
+    max_iterations=3
+)
+```
+
+---
+
+**✅ Ten sprint plan jest gotowy do użycia z claude-cursor-orchestrator!**
+
+Now fill in the specific tasks for {project_name} based on {sprint_goal}.
+Each day should have 3-5 tasks, each taking 30-120 minutes.
 """
 
 if __name__ == "__main__":

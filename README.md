@@ -9,7 +9,8 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 ## ✨ Features
 
 - **18 Powerful Tools** for task management and orchestration including **Claude Supervisor**
-- **5 Resources** including real-time metrics, live updates, and **communication guide**
+- **6 Resources** including real-time metrics, live updates, **communication guide**, and **sprint template**
+- **2 MCP Prompts** for workflow generation and **professional sprint planning**
 - **SQLite-based** persistent state management
 - **Git integration** with auto-commit support
 - **Concurrent task execution** with configurable limits
@@ -54,6 +55,12 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 3. **orchestrator://live-updates** 🔥 - Live updates stream (SSE-compatible)
 4. **orchestrator://metrics** 🆕 - Real-time performance metrics
 5. **orchestrator://communication-guide** ⭐ - Complete guide for Claude-Cursor communication
+6. **orchestrator://sprint-template** 🆕 - Professional sprint planning template (MTQuant-style)
+
+## 🎯 Prompts
+
+1. **orchestration_workflow_prompt** - Generate workflow for a goal
+2. **sprint_generator_prompt** 🆕 - Generate professional sprint plans with day-by-day breakdown
 
 ## 📦 Installation
 
@@ -161,6 +168,113 @@ Claude can automatically read `orchestrator://communication-guide` to get comple
 - ✅ Automatic updates when you modify the guide
 
 **Claude Desktop will automatically use this resource** when needed!
+
+### 🚀 Sprint Generator - Professional Development Plans
+
+**Based on proven patterns from production projects (MTQuant style)!**
+
+The orchestrator now includes a powerful sprint planning system that generates **day-by-day development plans** with ready-to-use Cursor AI prompts.
+
+**Features:**
+- 📅 **Day-by-day breakdown** - organized structure for 7-14 day sprints
+- ⏱️ **Time estimates** - each task has realistic time allocation (30-120 min)
+- 📋 **Ready-to-use prompts** - copy-paste Cursor AI instructions
+- ✅ **Verification checklists** - clear success criteria for each task
+- 🎯 **Expected outcomes** - what should work after each task
+- 🔗 **Orchestrator integration** - direct integration with execute_cursor_task()
+
+**How to use:**
+
+**1. Generate a sprint plan:**
+```
+Use prompt: sprint_generator_prompt(
+    project_name="MyApp",
+    sprint_goal="Build user authentication system",
+    duration_days=7,
+    tech_stack="FastAPI, PostgreSQL, JWT",
+    prerequisites="Python 3.11, Docker installed"
+)
+```
+
+**2. Get the template:**
+```
+Read: orchestrator://sprint-template
+```
+
+**3. Execute tasks from sprint:**
+```
+execute_cursor_task(
+    project_path="/path/to/project",
+    command="[Copy Cursor AI Prompt from sprint plan]",
+    priority="high"
+)
+```
+
+**4. Monitor progress:**
+```
+get_task_status(task_id="task_xxx")
+start_watching_project(project_path="/path/to/project")
+```
+
+**Sprint structure:**
+```
+DAY 1 - Foundation
+  Task 1.1: Project structure (30 min)
+    ✅ Cursor AI Prompt: [Ready to copy]
+    ✅ Verification: [Checklist]
+    ✅ Expected Outcome: [Clear goal]
+  
+  Task 1.2: Database setup (60 min)
+    ...
+
+DAY 2 - Core Features
+  Task 2.1: User model (45 min)
+    ...
+```
+
+**Example prompts from generated sprints:**
+```markdown
+**Cursor AI Prompt:**
+```
+Create user authentication module for FastAPI backend.
+
+Requirements:
+- JWT token-based authentication
+- Password hashing with bcrypt
+- Email/password login endpoint
+- Token refresh endpoint
+
+Implementation:
+```python
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, EmailStr
+
+router = APIRouter(prefix="/auth")
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+@router.post("/login")
+async def login(request: LoginRequest):
+    # Implementation here
+    pass
+```
+
+Testing:
+- pytest fixtures for test users
+- Test successful login
+- Test invalid credentials
+- Test token validation
+```
+```
+
+**Benefits:**
+- ✅ **No more planning overhead** - Claude generates detailed plans
+- ✅ **Proven structure** - based on real production projects
+- ✅ **Copy-paste ready** - prompts work directly with Cursor AI
+- ✅ **Trackable progress** - built-in verification and monitoring
+- ✅ **Consistent quality** - best practices baked in
 
 ### 🎯 Claude Supervisor - **Claude pilnuje Cursor AI!**
 
