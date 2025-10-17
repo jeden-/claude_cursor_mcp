@@ -294,55 +294,72 @@
             try {
                 console.log('📊 Loading dashboard data...');
                 
-                // In real implementation, this would call MCP tools
-                // For now, we'll show mock data
+                // Fetch real stats from API
+                const statsResponse = await fetch('/api/stats');
+                const stats = await statsResponse.json();
                 
                 // Update stats
-                document.getElementById('total-tasks').textContent = '9';
-                document.getElementById('completed-tasks').textContent = '9';
-                document.getElementById('running-tasks').textContent = '0';
-                document.getElementById('failed-tasks').textContent = '0';
-                document.getElementById('watching-count').textContent = '1';
-                document.getElementById('success-rate').textContent = '100%';
+                document.getElementById('total-tasks').textContent = stats.total || '-';
+                document.getElementById('completed-tasks').textContent = stats.completed || '-';
+                document.getElementById('running-tasks').textContent = stats.running || '-';
+                document.getElementById('failed-tasks').textContent = stats.failed || '-';
+                document.getElementById('watching-count').textContent = stats.watching || '-';
+                document.getElementById('success-rate').textContent = stats.success_rate || '-';
                 
-                // Update tasks list
+                // Fetch and update tasks list
+                const tasksResponse = await fetch('/api/tasks');
+                const tasksData = await tasksResponse.json();
+                
                 const tasksContainer = document.getElementById('tasks-container');
-                tasksContainer.innerHTML = `
-                    <div class="task-item">
-                        <div class="task-header">
-                            <div class="task-title">Definicja schematu bazy danych Prisma</div>
-                            <span class="task-status status-completed">✅ Completed</span>
-                        </div>
-                        <div class="task-meta">
-                            🆔 task_20251017_143338_958428 | 📁 /Users/mariusz/amgsquant
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 100%"></div>
-                        </div>
-                    </div>
-                    <div class="task-item">
-                        <div class="task-header">
-                            <div class="task-title">Inicjalizacja projektu drukarni wielkoformatowej</div>
-                            <span class="task-status status-completed">✅ Completed</span>
-                        </div>
-                        <div class="task-meta">
-                            🆔 task_20251017_143247_683648 | 📁 /Users/mariusz/amgsquant
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 100%"></div>
-                        </div>
-                    </div>
-                `;
+                if (tasksData.tasks && tasksData.tasks.length > 0) {
+                    tasksContainer.innerHTML = tasksData.tasks.map(task => {
+                        const statusClass = task.status === 'completed' ? 'status-completed' : 
+                                          task.status === 'running' ? 'status-running' : 
+                                          task.status === 'failed' ? 'status-failed' : 'status-completed';
+                        const statusIcon = task.status === 'completed' ? '✅' :
+                                         task.status === 'running' ? '⚡' :
+                                         task.status === 'failed' ? '❌' : '📝';
+                        const statusText = task.status.toUpperCase();
+                        const itemClass = task.status === 'running' ? 'task-item running' :
+                                        task.status === 'failed' ? 'task-item failed' : 'task-item';
+                        const progress = task.status === 'completed' ? 100 : 
+                                       task.status === 'running' ? 50 : 0;
+                        
+                        return `
+                            <div class="${itemClass}">
+                                <div class="task-header">
+                                    <div class="task-title">${task.description}</div>
+                                    <span class="task-status ${statusClass}">${statusIcon} ${statusText}</span>
+                                </div>
+                                <div class="task-meta">
+                                    🆔 ${task.id} | 📁 ${task.project_path}
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    tasksContainer.innerHTML = '<p style="opacity: 0.7;">No tasks found</p>';
+                }
                 
-                // Update watching projects
+                // Fetch and update watching projects
+                const watchingResponse = await fetch('/api/watching');
+                const watchingData = await watchingResponse.json();
+                
                 const watchingContainer = document.getElementById('watching-container');
-                watchingContainer.innerHTML = `
-                    <div class="watching-projects">
-                        <ul class="project-list">
-                            <li>/Users/mariusz/amgsquant/.cursor-tasks</li>
-                        </ul>
-                    </div>
-                `;
+                if (watchingData.projects && watchingData.projects.length > 0) {
+                    watchingContainer.innerHTML = `
+                        <div class="watching-projects">
+                            <ul class="project-list">
+                                ${watchingData.projects.map(p => `<li>${p}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    watchingContainer.innerHTML = '<p style="opacity: 0.7;">No projects being watched</p>';
+                }
                 
                 console.log('✅ Dashboard data loaded');
                 
