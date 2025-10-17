@@ -9,16 +9,19 @@ This MCP (Model Context Protocol) server enables Claude Desktop to orchestrate a
 ## ✨ Features
 
 - **18 Powerful Tools** for task management and orchestration including **Claude Supervisor**
-- **3 Resources** including real-time metrics
-- **1 Workflow Prompt** generator
+- **4 Resources** including real-time metrics and live updates
 - **SQLite-based** persistent state management
 - **Git integration** with auto-commit support
 - **Concurrent task execution** with configurable limits
 - **Activity logging** and monitoring
 - **🆕 Retry mechanism** with exponential backoff
 - **🆕 Task templates** for reusable workflows
-- **🆕 Path validation** for security
+- **🆕 Path validation** for security (disabled by default)
 - **🆕 Real-time metrics** and analytics
+- **🔥 Bidirectional communication** - Claude ↔ Orchestrator ↔ Cursor AI
+- **🔥 File Watcher** - automatic monitoring of API files
+- **🔥 Live Dashboard** - real-time task visualization
+- **🎯 Claude Supervisor** - automatic task verification and correction
 
 ## 🛠️ Tools Available
 
@@ -192,34 +195,39 @@ Claude → Ty: "Formularz gotowy! ✅"
 
 ### 🔥 Full Automation - NEW!
 
-**Complete automatic workflow without user interaction:**
+**Complete automatic workflow with bidirectional communication:**
 
-#### **File Watcher**
+#### **File Watcher (Built-in)**
 - Automatically monitors `.cursor-tasks/` directory for API file changes
 - Detects when Cursor AI updates task progress
 - Updates task status in database in real-time
-- Notifies subscribers of changes
+- Notifies Claude Desktop of changes via SSE
 
-#### **Auto-Executor Script**
+#### **Auto-Executor Script** (for testing)
 ```bash
-python cursor_auto_executor.py /path/to/project
+uv run python cursor_auto_executor.py /path/to/project
 ```
 - Watches for new tasks in `.cursor-tasks/`
-- Automatically executes tasks
+- Automatically "executes" tasks (simulation)
 - Updates API files with progress (10%, 30%, 60%, 90%, 100%)
-- Simulates Cursor AI behavior for testing
+- Useful for testing the communication flow
 
 #### **Live Dashboard**
-Open `dashboard.html` in browser:
-- Real-time task monitoring
+```bash
+uv run python dashboard_server.py
+```
+Then open http://localhost:8080 in browser:
+- Real-time task monitoring from SQLite database
 - Statistics and success rates
 - List of monitored projects
+- Recent tasks with status
 - Auto-refresh every 5 seconds
 
 #### **Tools for monitoring:**
 - `start_watching_project(project_path)` - Start automatic monitoring
 - `stop_watching_project(project_path)` - Stop monitoring
 - `get_watching_status()` - List monitored projects
+- `monitor_api_communication(task_id)` - Monitor specific task
 - `orchestrator://live-updates` - SSE stream of updates
 
 ### 🎯 How to Execute Tasks in Cursor
@@ -314,10 +322,15 @@ To enable path restrictions, uncomment and configure allowed directories in the 
 
 ```
 claude_cursor_mcp/
-├── cursor_orchestrator_advanced.py  # Main server code
+├── cursor_orchestrator_advanced.py  # Main MCP server code
+├── dashboard_server.py              # Live dashboard HTTP server
+├── dashboard.html                   # Real-time monitoring UI
+├── cursor_auto_executor.py          # Testing script (simulates Cursor AI)
+├── claude_supervisor.py             # Example supervisor usage
 ├── orchestrator_setup_guide.md      # Detailed setup guide
 ├── orchestrator_config_files.md     # Additional config examples
 ├── pyproject.toml                   # Project dependencies
+├── uv.lock                          # Locked dependencies
 └── README.md                        # This file
 ```
 
@@ -329,6 +342,7 @@ Tables:
 - **tasks** - Task history and status
 - **projects** - Project states
 - **activity_log** - System activity
+- **task_templates** - Reusable task templates
 
 ## 📝 Logs
 
