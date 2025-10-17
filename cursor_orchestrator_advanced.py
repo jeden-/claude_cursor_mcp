@@ -33,12 +33,16 @@ class Config:
     AUTO_OPEN_CURSOR = True  # Automatically open project in Cursor
     
     # Security: Allowed project paths (empty list = allow all)
-    ALLOWED_PROJECT_PATHS = [
-        Path.home() / "projects",
-        Path.home() / "work",
-        Path.home() / "Documents",
-        # Add more allowed paths as needed
-    ]
+    # Set to [] to disable restrictions and allow all paths
+    ALLOWED_PROJECT_PATHS = []  # Disabled - allows all paths in home directory
+    
+    # Or specify allowed directories:
+    # ALLOWED_PROJECT_PATHS = [
+    #     Path.home() / "projects",
+    #     Path.home() / "work", 
+    #     Path.home() / "Documents",
+    #     Path.home() / "fakturowanie",  # Add your custom paths here
+    # ]
     
     @classmethod
     def ensure_dirs(cls):

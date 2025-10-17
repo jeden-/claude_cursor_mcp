@@ -161,7 +161,22 @@ class Config:
     MAX_CONCURRENT_TASKS = 3     # Max parallel tasks
     TASK_TIMEOUT = 300           # 5 minutes
     GIT_AUTO_COMMIT = True       # Auto-commit changes
+    CURSOR_MODE = "instruction"  # "instruction", "mock", or "api"
+    
+    # Path validation (empty list = allow all)
+    ALLOWED_PROJECT_PATHS = []   # Disabled by default
+    # Or specify allowed directories:
+    # ALLOWED_PROJECT_PATHS = [
+    #     Path.home() / "projects",
+    #     Path.home() / "your-folder",
+    # ]
 ```
+
+### 🔒 Path Security
+
+By default, path validation is **disabled** (`ALLOWED_PROJECT_PATHS = []`) to allow maximum flexibility.
+
+To enable path restrictions, uncomment and configure allowed directories in the `Config` class.
 
 ## 📊 System Architecture
 
